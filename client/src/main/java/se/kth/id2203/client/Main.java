@@ -23,15 +23,7 @@
  */
 package se.kth.id2203.client;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.UUID;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.networking.NetAddressConverter;
 import se.sics.kompics.Kompics;
@@ -40,7 +32,13 @@ import se.sics.kompics.config.ConfigUpdate;
 import se.sics.kompics.config.Conversions;
 import se.sics.kompics.config.ValueMerger;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.UUID;
+
 /**
+ *
+ * Entry point of the Client Process/Component
  *
  * @author Lars Kroll <lkroll@kth.se>
  */
@@ -53,17 +51,25 @@ public class Main {
         Conversions.register(NAC);
     }
 
+    /**
+     * Main method, read command line options: client port and bootstrap server ip:port, then spawn kompics runtime
+     * and ParentComponent. Uses Apache Commons CLI library for parsing.
+     * @param args
+     */
     public static void main(String[] args) {
         Options opts = prepareOptions();
-        HelpFormatter formatter = new HelpFormatter();
+        HelpFormatter formatter = new HelpFormatter(); //Formatter for "help"-messages on the CLI
         CommandLine cmd;
         try {
             CommandLineParser cliparser = new DefaultParser();
             cmd = cliparser.parse(opts, args);
             // avoid constant conversion of the address by converting once and reassigning
-            Config.Impl c = (Config.Impl) Kompics.getConfig();
-            NetAddress self = c.getValue("id2203.project.address", NetAddress.class);
-            Config.Builder cb = c.modify(UUID.randomUUID());
+            Config.Impl kompicsConfig = (Config.Impl) Kompics.getConfig();
+            NetAddress self = kompicsConfig.getValue("id2203.project.address", NetAddress.class);
+            Config.Builder configBuilder = kompicsConfig.modify(UUID.randomUUID());
+            /**
+             * Parse command-line options and update the kompics config
+             */
             if (cmd.hasOption("p") || cmd.hasOption("i")) {
                 String ip = self.asSocket().getHostString();
                 int port = self.getPort();
@@ -75,7 +81,7 @@ public class Main {
                 }
                 self = new NetAddress(InetAddress.getByName(ip), port);
             }
-            cb.setValue("id2203.project.address", self);
+            configBuilder.setValue("id2203.project.address", self);
             if (cmd.hasOption("b")) {
                 String serverS = cmd.getOptionValue("b");
                 NetAddress server = NAC.convert(serverS);
@@ -83,11 +89,13 @@ public class Main {
                     System.err.println("Couldn't parse address string: " + serverS);
                     System.exit(1);
                 }
-                cb.setValue("id2203.project.bootstrap-address", server);
+                configBuilder.setValue("id2203.project.bootstrap-address", server);
             }
-            ConfigUpdate cu = cb.finalise();
-            c.apply(cu, ValueMerger.NONE);
-
+            ConfigUpdate configUpdate = configBuilder.finalise();
+            kompicsConfig.apply(configUpdate, ValueMerger.NONE);
+            /**
+             * Start kompics runtime and ParentComponent
+             */
             Kompics.createAndStart(ParentComponent.class);
         } catch (ParseException ex) {
             System.err.println("Invalid commandline options: " + ex.getMessage());
@@ -99,6 +107,12 @@ public class Main {
         }
     }
 
+    /**
+     * Returns Options object which represents a collection of Option Objects, which describe the possible options
+     * for command-line. The client takes three options: local port and remote server ip:port.
+     *
+     * @return Options - main entry point into the cli-library
+     */
     private static Options prepareOptions() {
         Options opts = new Options();
 

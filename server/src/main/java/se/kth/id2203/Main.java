@@ -23,15 +23,7 @@
  */
 package se.kth.id2203;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.UUID;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.*;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.networking.NetAddressConverter;
 import se.sics.kompics.Kompics;
@@ -40,7 +32,12 @@ import se.sics.kompics.config.ConfigUpdate;
 import se.sics.kompics.config.Conversions;
 import se.sics.kompics.config.ValueMerger;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.UUID;
+
 /**
+ * Entry point of the Server process/component
  *
  * @author Lars Kroll <lkroll@kth.se>
  */
@@ -53,6 +50,12 @@ public class Main {
         Conversions.register(NAC);
     }
 
+    /**
+     * Read command line options, if bootstrap-server then only read local port, if bootstrap-client read
+     * local port + bootstrap-server ip:port. Then start HostComponent and kompics runtime.
+     *  Uses Apache Commons CLI library for parsing.
+     * @param args
+     */
     public static void main(String[] args) {
         Options opts = prepareOptions();
         HelpFormatter formatter = new HelpFormatter();
@@ -99,6 +102,12 @@ public class Main {
         }
     }
 
+    /**
+     * Returns Options object which represents a collection of Option Objects, which describe the possible options
+     * for command-line. The client takes three options: local port and remote server ip:port.
+     *
+     * @return Options - main entry point into the cli-library
+     */
     private static Options prepareOptions() {
         Options opts = new Options();
 

@@ -35,6 +35,7 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.network.Network;
 
 /**
+ * ServiceComponent that handles the actual operation-requests from clients and return results.
  *
  * @author Lars Kroll <lkroll@kth.se>
  */
@@ -57,6 +58,9 @@ public class KVService extends ComponentDefinition {
 
     };
 
+    /**
+     * Kompics "instance initializer", subscribe handlers to ports.
+     */
     {
         subscribe(opHandler, net);
     }

@@ -25,28 +25,25 @@ package se.kth.id2203.kvstore;
 
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.SettableFuture;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.UUID;
-import java.util.concurrent.Future;
 import org.slf4j.LoggerFactory;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.overlay.Connect;
 import se.kth.id2203.overlay.RouteMsg;
-import se.sics.kompics.ClassMatchedHandler;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Handler;
-import se.sics.kompics.Kompics;
-import se.sics.kompics.KompicsEvent;
-import se.sics.kompics.Positive;
-import se.sics.kompics.Start;
+import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.ScheduleTimeout;
 import se.sics.kompics.timer.Timeout;
 import se.sics.kompics.timer.Timer;
 
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.concurrent.Future;
+
 /**
+ * ClientService component, receives Operation-commands from Console-thread and sends, connects to and sends requests to
+ * Bootstrap server.
  *
  * @author Lars Kroll <lkroll@kth.se>
  */
@@ -124,7 +121,10 @@ public class ClientService extends ComponentDefinition {
             }
         }
     };
-    
+
+    /**
+     * Kompics "instance initializer", subscribe handlers to ports.
+     */
     {
         subscribe(startHandler, control);
         subscribe(timeoutHandler, timer);
@@ -132,7 +132,7 @@ public class ClientService extends ComponentDefinition {
         subscribe(opHandler, loopback);
         subscribe(responseHandler, net);
     }
-    
+
     Future<OpResponse> op(String key) {
         Operation op = new Operation(key);
         OpWithFuture owf = new OpWithFuture(op);

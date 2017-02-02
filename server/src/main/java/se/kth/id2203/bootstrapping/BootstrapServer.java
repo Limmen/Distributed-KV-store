@@ -24,25 +24,24 @@
 package se.kth.id2203.bootstrapping;
 
 import com.google.common.collect.ImmutableSet;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.kth.id2203.bootstrapping.BootstrapServer.State;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
-import se.sics.kompics.ClassMatchedHandler;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Handler;
-import se.sics.kompics.Negative;
-import se.sics.kompics.Positive;
-import se.sics.kompics.Start;
+import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timer;
 
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * BootstrapServer, used by the first node in the cluster, hosts a type of handshake protocol that allows more servers
+ * to join the cluster.
+ */
 public class BootstrapServer extends ComponentDefinition {
 
     final static Logger LOG = LoggerFactory.getLogger(BootstrapServer.class);
@@ -116,6 +115,9 @@ public class BootstrapServer extends ComponentDefinition {
         }
     };
 
+    /**
+     * Kompics "instance initializer", subscribe handlers to ports.
+     */
     {
         subscribe(startHandler, control);
         subscribe(timeoutHandler, timer);

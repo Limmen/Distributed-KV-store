@@ -23,12 +23,16 @@
  */
 package se.kth.id2203.networking;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.Map;
 import se.sics.kompics.config.Conversions;
 import se.sics.kompics.config.Converter;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Map;
+
+/**
+ * Convert between Kompics config to NetAddress
+ */
 public class NetAddressConverter implements Converter<NetAddress> {
 
     @Override

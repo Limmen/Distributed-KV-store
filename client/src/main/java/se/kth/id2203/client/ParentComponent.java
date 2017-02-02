@@ -35,6 +35,9 @@ import se.sics.kompics.network.netty.NettyNetwork;
 import se.sics.kompics.timer.Timer;
 import se.sics.kompics.timer.java.JavaTimer;
 
+/**
+ * Parent component which connects subcomponents for the client: ClientService, JavaTimer and NettyNetwork
+ */
 public class ParentComponent
         extends ComponentDefinition {
 

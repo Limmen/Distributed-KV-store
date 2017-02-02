@@ -16,6 +16,10 @@ import se.sics.kompics.Positive;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 
+/**
+ * Parent component initializes subcomponents and connects them. Subcomponents are VSOverlayManager, KVService and
+ * BootstrapClient or BootstrapServer
+ */
 public class ParentComponent
         extends ComponentDefinition {
 

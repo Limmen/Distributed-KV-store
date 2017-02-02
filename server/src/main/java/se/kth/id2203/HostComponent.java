@@ -35,6 +35,7 @@ import se.sics.kompics.timer.Timer;
 import se.sics.kompics.timer.java.JavaTimer;
 
 /**
+ * Main component of the server, creates and connects Timer, Network and parent
  *
  * @author Lars Kroll <lkroll@kth.se>
  */

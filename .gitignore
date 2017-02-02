@@ -1,10 +1,21 @@
-target/
-.project
 .prefs
-.classpath
-.settings/
 lib/
 
+nb-configuration.xml
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Intellij
+.idea/
+*.iml
+*.iws
+
+# Mac
 .DS_Store
 
-nb-configuration.xml
+# Maven
+log/
+target/

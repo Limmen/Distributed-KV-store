@@ -24,7 +24,6 @@
 package se.kth.id2203.overlay;
 
 import com.larskroll.common.J6;
-import java.util.Collection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.kth.id2203.bootstrapping.Booted;
@@ -33,13 +32,11 @@ import se.kth.id2203.bootstrapping.GetInitialAssignments;
 import se.kth.id2203.bootstrapping.InitialAssignments;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
-import se.sics.kompics.ClassMatchedHandler;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Handler;
-import se.sics.kompics.Negative;
-import se.sics.kompics.Positive;
+import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
+
+import java.util.Collection;
 
 /**
  * The V(ery)S(imple)OverlayManager.
@@ -49,6 +46,8 @@ import se.sics.kompics.timer.Timer;
  * Note: This implementation does not fulfill the project task. You have to
  * support multiple partitions!
  * <p>
+ * Handles routing and communication with bootstrap-server.
+ *
  * @author Lars Kroll <lkroll@kth.se>
  */
 public class VSOverlayManager extends ComponentDefinition {
@@ -119,6 +118,9 @@ public class VSOverlayManager extends ComponentDefinition {
         }
     };
 
+    /**
+     * Kompics "instance initializer", subscribe handlers to ports.
+     */
     {
         subscribe(initialAssignmentHandler, boot);
         subscribe(bootHandler, boot);
