@@ -82,7 +82,8 @@ public class BootstrapClient extends ComponentDefinition {
                 trigger(new Message(self, server, CheckIn.event), net);
             } else if (state == State.STARTED) {
                 trigger(new Message(self, server, Ready.event), net);
-                suicide();
+                //TODO
+                //suicide();
             }
         }
     };

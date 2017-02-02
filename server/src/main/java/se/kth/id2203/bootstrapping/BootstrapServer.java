@@ -86,7 +86,8 @@ public class BootstrapServer extends ComponentDefinition {
                     state = State.DONE;
                 }
             } else if (state == State.DONE) {
-                suicide();
+                //TODO
+                //suicide();
             }
         }
     };
