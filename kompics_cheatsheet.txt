@@ -1,0 +1,13 @@
+Component - basic abstraction in kompics, holds in ports and handelrs. Has exclusive internal state
+
+Ports
+
+-Request (positive) on the bottom of the component
+-Indication (negative) on the top of the component
+
+
+Request-response patterns
+
+A direct (newer) pattern, that only remembers the origin port of the request and triggers the response directly on that port.
+
+

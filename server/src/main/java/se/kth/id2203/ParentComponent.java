@@ -3,7 +3,7 @@ package se.kth.id2203;
 import com.google.common.base.Optional;
 import se.kth.id2203.bootstrapping.BootstrapClient;
 import se.kth.id2203.bootstrapping.BootstrapServer;
-import se.kth.id2203.bootstrapping.Bootstrapping;
+import se.kth.id2203.bootstrapping.ports.Bootstrapping;
 import se.kth.id2203.kvstore.KVService;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.overlay.Routing;

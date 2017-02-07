@@ -26,10 +26,11 @@ package se.kth.id2203.overlay;
 import com.larskroll.common.J6;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import se.kth.id2203.bootstrapping.Booted;
-import se.kth.id2203.bootstrapping.Bootstrapping;
-import se.kth.id2203.bootstrapping.GetInitialAssignments;
-import se.kth.id2203.bootstrapping.InitialAssignments;
+
+import se.kth.id2203.bootstrapping.events.Booted;
+import se.kth.id2203.bootstrapping.events.GetInitialAssignments;
+import se.kth.id2203.bootstrapping.events.InitialAssignments;
+import se.kth.id2203.bootstrapping.ports.Bootstrapping;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.*;

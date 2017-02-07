@@ -26,6 +26,14 @@ package se.kth.id2203.bootstrapping;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import se.kth.id2203.bootstrapping.events.Boot;
+import se.kth.id2203.bootstrapping.events.Booted;
+import se.kth.id2203.bootstrapping.events.CheckIn;
+import se.kth.id2203.bootstrapping.events.GetInitialAssignments;
+import se.kth.id2203.bootstrapping.events.InitialAssignments;
+import se.kth.id2203.bootstrapping.events.Ready;
+import se.kth.id2203.bootstrapping.ports.Bootstrapping;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.*;

@@ -21,18 +21,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.bootstrapping;
+package se.kth.id2203.bootstrapping.events;
 
+import se.kth.id2203.bootstrapping.NodeAssignment;
 import se.sics.kompics.KompicsEvent;
 
 /**
- * Sent locally between from bootstrap-client to VSOverlayManager, contains the node-assignment for partitions.
+ * Message sent locally from VSOverlayManager to BootstrapServer
  */
-public class Booted implements KompicsEvent {
+public class InitialAssignments implements KompicsEvent {
 
     public final NodeAssignment assignment;
 
-    public Booted(final NodeAssignment assignment) {
+    public InitialAssignments(final NodeAssignment assignment) {
         this.assignment = assignment;
     }
 }

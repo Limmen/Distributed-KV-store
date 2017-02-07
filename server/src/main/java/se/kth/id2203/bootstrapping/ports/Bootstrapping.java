@@ -21,20 +21,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.bootstrapping;
+package se.kth.id2203.bootstrapping.ports;
 
-import se.sics.kompics.KompicsEvent;
-
-import java.io.Serializable;
+import se.kth.id2203.bootstrapping.events.Booted;
+import se.kth.id2203.bootstrapping.events.GetInitialAssignments;
+import se.kth.id2203.bootstrapping.events.InitialAssignments;
+import se.sics.kompics.PortType;
 
 /**
- * Sent by BootstrapClient to BootstrapServer after having booted successfully
+ * Port used between BootstrapClient/Server and VSOverlayManager
  */
-public class Ready implements KompicsEvent, Serializable {
+public class Bootstrapping extends PortType {
 
-    public final static Ready event = new Ready();
-    private static final long serialVersionUID = -7001751367547102242L;
-
-    private Ready() {
+    {
+        indication(GetInitialAssignments.class);
+        indication(Booted.class);
+        request(InitialAssignments.class);
     }
 }

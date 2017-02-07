@@ -21,23 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.bootstrapping;
+package se.kth.id2203.bootstrapping.events;
 
+import com.google.common.collect.ImmutableSet;
+import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.KompicsEvent;
 
-import java.io.Serializable;
-
 /**
- * Message sent by bootstrap server to bootstrap-client with the initial partition assignments,
- * commands the receiver to "boot up".
+ * Message sent locally from BootstrapServer to VSOverlayManager
  */
-public class Boot implements KompicsEvent, Serializable {
+public class GetInitialAssignments implements KompicsEvent {
 
-    private static final long serialVersionUID = -4700507659951599133L;
+    public final ImmutableSet<NetAddress> nodes;
+    public final int replicationDegree;
+    public final int keySpace;
 
-    public final NodeAssignment assignment;
-
-    public Boot(NodeAssignment assignment) {
-        this.assignment = assignment;
+    public GetInitialAssignments(final ImmutableSet<NetAddress> nodes, int replicationDegree, int keySpace) {
+        this.nodes = nodes;
+        this.replicationDegree = replicationDegree;
+        this.keySpace = keySpace;
     }
 }
