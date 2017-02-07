@@ -61,6 +61,10 @@ public class BootstrapClient extends ComponentDefinition {
     private UUID timeoutId;
 
     //******* Handlers ******
+
+    /**
+     * Startup, start timer for periodically sending check-in messages to bootstrap-server until asked to boot.
+     */
     protected final Handler<Start> startHandler = new Handler<Start>() {
 
         @Override
@@ -73,21 +77,27 @@ public class BootstrapClient extends ComponentDefinition {
             timeoutId = spt.getTimeoutEvent().getTimeoutId();
         }
     };
+    /**
+     * CheckIn at server or notify server that we have already booted successfully
+     */
     protected final Handler<BSTimeout> timeoutHandler = new Handler<BSTimeout>() {
 
         @Override
         public void handle(BSTimeout e) {
-
             if (state == State.WAITING) {
                 trigger(new Message(self, server, CheckIn.event), net);
             } else if (state == State.STARTED) {
                 trigger(new Message(self, server, Ready.event), net);
-                //TODO
-                //suicide();
+                //LOG.debug("bootstrap done, timeout triggered");
+                //tearDown();
+                suicide();
             }
         }
     };
 
+    /**
+     * BoostrapServer gives a initial partition assignment and asks us to boot.
+     */
     protected final ClassMatchedHandler<Boot, Message> bootHandler = new ClassMatchedHandler<Boot, Message>() {
 
         @Override
@@ -95,19 +105,25 @@ public class BootstrapClient extends ComponentDefinition {
             if (state == State.WAITING) {
                 LOG.info("{} Booting up.", self);
                 trigger(new Booted(content.assignment), bootstrap);
-                trigger(new CancelPeriodicTimeout(timeoutId), timer);
+                //trigger(new CancelPeriodicTimeout(timeoutId), timer);
                 trigger(new Message(self, server, Ready.event), net);
                 state = State.STARTED;
             }
         }
     };
 
+    /**
+     * Bootstrap complete
+     */
     @Override
     public void tearDown() {
         trigger(new CancelPeriodicTimeout(timeoutId), timer);
+        LOG.debug("Bootstrap complete");
     }
 
-    {
+    /**
+     * Kompics "instance initializer", subscribe handlers to ports.
+     */ {
         subscribe(startHandler, control);
         subscribe(timeoutHandler, timer);
         subscribe(bootHandler, net);

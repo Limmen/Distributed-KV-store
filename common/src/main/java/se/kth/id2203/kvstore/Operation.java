@@ -24,9 +24,10 @@
 package se.kth.id2203.kvstore;
 
 import com.google.common.base.MoreObjects;
+import se.sics.kompics.KompicsEvent;
+
 import java.io.Serializable;
 import java.util.UUID;
-import se.sics.kompics.KompicsEvent;
 
 /**
  *
@@ -38,9 +39,11 @@ public class Operation implements KompicsEvent, Serializable {
 
     public final String key;
     public final UUID id;
+    public final OperationCode operationCode;
 
-    public Operation(String key) {
+    public Operation(String key, OperationCode operationCode) {
         this.key = key;
+        this.operationCode = operationCode;
         this.id = UUID.randomUUID();
     }
 
@@ -50,5 +53,9 @@ public class Operation implements KompicsEvent, Serializable {
                 .add("id", id)
                 .add("key", key)
                 .toString();
+    }
+
+    public static enum OperationCode {
+        GET, PUT
     }
 }

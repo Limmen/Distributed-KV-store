@@ -25,6 +25,9 @@ package se.kth.id2203.bootstrapping;
 
 import se.sics.kompics.KompicsEvent;
 
+/**
+ * Message sent locally from VSOverlayManager to BootstrapServer
+ */
 public class InitialAssignments implements KompicsEvent {
 
     public final NodeAssignment assignment;

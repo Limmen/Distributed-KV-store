@@ -25,6 +25,9 @@ package se.kth.id2203.bootstrapping;
 
 import se.sics.kompics.PortType;
 
+/**
+ * Port used between BootstrapClient/Server and VSOverlayManager
+ */
 public class Bootstrapping extends PortType {
 
     {

@@ -23,9 +23,13 @@
  */
 package se.kth.id2203.bootstrapping;
 
-import java.io.Serializable;
 import se.sics.kompics.KompicsEvent;
 
+import java.io.Serializable;
+
+/**
+ * Sent by BootstrapClient to BootstrapServer after having booted successfully
+ */
 public class Ready implements KompicsEvent, Serializable {
 
     public final static Ready event = new Ready();

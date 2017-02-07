@@ -23,9 +23,14 @@
  */
 package se.kth.id2203.bootstrapping;
 
-import java.io.Serializable;
 import se.sics.kompics.KompicsEvent;
 
+import java.io.Serializable;
+
+/**
+ * Message sent by bootstrap server to bootstrap-client with the initial partition assignments,
+ * commands the receiver to "boot up".
+ */
 public class Boot implements KompicsEvent, Serializable {
 
     private static final long serialVersionUID = -4700507659951599133L;

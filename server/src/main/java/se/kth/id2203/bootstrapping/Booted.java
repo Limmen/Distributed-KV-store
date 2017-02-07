@@ -25,6 +25,9 @@ package se.kth.id2203.bootstrapping;
 
 import se.sics.kompics.KompicsEvent;
 
+/**
+ * Sent locally between from bootstrap-client to VSOverlayManager, contains the node-assignment for partitions.
+ */
 public class Booted implements KompicsEvent {
 
     public final NodeAssignment assignment;

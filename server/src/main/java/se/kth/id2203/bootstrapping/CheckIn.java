@@ -23,9 +23,13 @@
  */
 package se.kth.id2203.bootstrapping;
 
-import java.io.Serializable;
 import se.sics.kompics.KompicsEvent;
 
+import java.io.Serializable;
+
+/**
+ * Sent by bootstrapClients to bootstrapServers to indicate that the client wants to joint the cluster
+ */
 public class CheckIn implements KompicsEvent, Serializable {
 
     public final static CheckIn event = new CheckIn();

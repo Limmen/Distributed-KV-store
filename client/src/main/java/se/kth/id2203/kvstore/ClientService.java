@@ -60,6 +60,9 @@ public class ClientService extends ComponentDefinition {
     private final Map<UUID, SettableFuture<OpResponse>> pending = new TreeMap<>();
 
     //******* Handlers ******
+    /**
+     * Startup, sent connect-request to server and wait for response, use timeout to not wait forever.
+     */
     protected final Handler<Start> startHandler = new Handler<Start>() {
         
         @Override
@@ -72,6 +75,9 @@ public class ClientService extends ComponentDefinition {
             trigger(st, timer);
         }
     };
+    /**
+     * Connected successfully, start console thread to receive commands from user
+     */
     protected final ClassMatchedHandler<Connect.Ack, Message> connectHandler = new ClassMatchedHandler<Connect.Ack, Message>() {
         
         @Override
@@ -83,6 +89,9 @@ public class ClientService extends ComponentDefinition {
             tc.start();
         }
     };
+    /**
+     * Connect-timeout, error-handling/shutdown.
+     */
     protected final Handler<ConnectTimeout> timeoutHandler = new Handler<ConnectTimeout>() {
         
         @Override
@@ -99,6 +108,11 @@ public class ClientService extends ComponentDefinition {
             }
         }
     };
+
+    /**
+     * Send operation-request to server, the operation is wrapped in a RouteMsg which is route in a network message.
+     * Add operation to pending-set.
+     */
     protected final Handler<OpWithFuture> opHandler = new Handler<OpWithFuture>() {
         
         @Override
@@ -108,6 +122,9 @@ public class ClientService extends ComponentDefinition {
             pending.put(event.op.id, event.f);
         }
     };
+    /**
+     * Received operation response, remove pending operation and do something with respose.
+     */
     protected final ClassMatchedHandler<OpResponse, Message> responseHandler = new ClassMatchedHandler<OpResponse, Message>() {
         
         @Override
@@ -133,13 +150,19 @@ public class ClientService extends ComponentDefinition {
         subscribe(responseHandler, net);
     }
 
-    Future<OpResponse> op(String key) {
-        Operation op = new Operation(key);
+    /**
+     * Send test-operation with future to self and returnthe future-response once the request have been responded to by
+     * server.
+     * @param key
+     * @return
+     */
+    Future<OpResponse> op(String key, Operation.OperationCode operationCode) {
+        Operation op = new Operation(key, operationCode);
         OpWithFuture owf = new OpWithFuture(op);
         trigger(owf, onSelf);
         return owf.f;
     }
-    
+
     public static class OpWithFuture implements KompicsEvent {
         
         public final Operation op;

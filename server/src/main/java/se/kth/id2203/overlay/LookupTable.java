@@ -26,11 +26,13 @@ package se.kth.id2203.overlay;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.TreeMultimap;
-import java.util.Collection;
 import se.kth.id2203.bootstrapping.NodeAssignment;
 import se.kth.id2203.networking.NetAddress;
 
+import java.util.Collection;
+
 /**
+ * LookupTable for nodes assigned to partitions.
  *
  * @author Lars Kroll <lkroll@kth.se>
  */
@@ -67,9 +69,19 @@ public class LookupTable implements NodeAssignment {
         return sb.toString();
     }
 
-    static LookupTable generate(ImmutableSet<NetAddress> nodes) {
+    static LookupTable generate(ImmutableSet<NetAddress> nodes, int replicationDegree, int keySpace) {
         LookupTable lut = new LookupTable();
-        lut.partitions.putAll(0, nodes);
+        int i = 0;
+        int partition = 0;
+        for(NetAddress node : nodes){
+            lut.partitions.put(partition, node);
+            i++;
+            if(i == replicationDegree){
+                i = 0;
+                partition = partition + keySpace;
+            }
+        }
+        //lut.partitions.putAll(0, nodes);
         return lut;
     }
 

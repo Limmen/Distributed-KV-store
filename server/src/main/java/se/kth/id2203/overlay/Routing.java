@@ -26,6 +26,7 @@ package se.kth.id2203.overlay;
 import se.sics.kompics.PortType;
 
 /**
+ * Port for local routing
  *
  * @author Lars Kroll <lkroll@kth.se>
  */

@@ -40,7 +40,9 @@ import java.util.UUID;
 
 /**
  * BootstrapServer, used by the first node in the cluster, hosts a type of handshake protocol that allows more servers
- * to join the cluster.
+ * to join the cluster. Servers can check in at the bootstrap server and when enough servers are checked in the
+ * bootstrapServer will generate a initial node-partition and then send it in a Boot-message that commands the other
+ * servers to "boot up" (booting in this context is starting the KV-store).
  */
 public class BootstrapServer extends ComponentDefinition {
 
@@ -52,12 +54,18 @@ public class BootstrapServer extends ComponentDefinition {
     //******* Fields ******
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     final int bootThreshold = config().getValue("id2203.project.bootThreshold", Integer.class);
+    final int replicationDegree = config().getValue("id2203.project.replicationDegree", Integer.class);
+    final int keySpace = config().getValue("id2203.project.keySpace", Integer.class);
     private State state = State.COLLECTING;
     private UUID timeoutId;
     private final Set<NetAddress> active = new HashSet<>();
     private final Set<NetAddress> ready = new HashSet<>();
     private NodeAssignment initialAssignment = null;
     //******* Handlers ******
+
+    /**
+     * Startup, setup timer for periodically checking if enough servers have checked in to intialize bootup
+     */
     protected final Handler<Start> startHandler = new Handler<Start>() {
         @Override
         public void handle(Start e) {
@@ -70,6 +78,9 @@ public class BootstrapServer extends ComponentDefinition {
             active.add(self);
         }
     };
+    /**
+     * Check if enough servers have checked in to bootup
+     */
     protected final Handler<BSTimeout> timeoutHandler = new Handler<BSTimeout>() {
         @Override
         public void handle(BSTimeout e) {
@@ -86,11 +97,15 @@ public class BootstrapServer extends ComponentDefinition {
                     state = State.DONE;
                 }
             } else if (state == State.DONE) {
-                //TODO
-                //suicide();
+                //LOG.debug("bootstrap done, timeout triggered");
+                //tearDown();
+                suicide();
             }
         }
     };
+    /**
+     * Received initial partition-assignment from VSOverlayManager
+     */
     protected final Handler<InitialAssignments> assignmentHandler = new Handler<InitialAssignments>() {
         @Override
         public void handle(InitialAssignments e) {
@@ -102,6 +117,10 @@ public class BootstrapServer extends ComponentDefinition {
             ready.add(self);
         }
     };
+
+    /**
+     * Received checkIn from bootstrapClient, add it to the set
+     */
     protected final ClassMatchedHandler<CheckIn, Message> checkinHandler = new ClassMatchedHandler<CheckIn, Message>() {
 
         @Override
@@ -109,6 +128,10 @@ public class BootstrapServer extends ComponentDefinition {
             active.add(context.getSource());
         }
     };
+
+    /**
+     * Received ready-request from bootstrap client, impliying that the client have booted successfully.
+     */
     protected final ClassMatchedHandler<Ready, Message> readyHandler = new ClassMatchedHandler<Ready, Message>() {
         @Override
         public void handle(Ready content, Message context) {
@@ -127,15 +150,22 @@ public class BootstrapServer extends ComponentDefinition {
         subscribe(readyHandler, net);
     }
 
+    /**
+     * Bootup complete
+     */
     @Override
     public void tearDown() {
         trigger(new CancelPeriodicTimeout(timeoutId), timer);
+        LOG.debug("Bootstrap complete");
     }
 
+    /**
+     * Initialize bootup by requesting initial partition assignment from VSOverlayManager
+     */
     private void bootUp() {
         LOG.info("Threshold reached. Generating assignments...");
         state = State.SEEDING;
-        trigger(new GetInitialAssignments(ImmutableSet.copyOf(active)), boot);
+        trigger(new GetInitialAssignments(ImmutableSet.copyOf(active), replicationDegree, keySpace), boot);
     }
 
     static enum State {

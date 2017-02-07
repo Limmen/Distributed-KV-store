@@ -23,11 +23,10 @@
  */
 package se.kth.id2203;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.kth.id2203.networking.NetAddress;
-import se.sics.kompics.Channel;
-import se.sics.kompics.Component;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Init;
+import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.network.netty.NettyInit;
 import se.sics.kompics.network.netty.NettyNetwork;
@@ -40,6 +39,7 @@ import se.sics.kompics.timer.java.JavaTimer;
  * @author Lars Kroll <lkroll@kth.se>
  */
 public class HostComponent extends ComponentDefinition {
+    final static Logger LOG = LoggerFactory.getLogger(HostComponent.class);
 
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     protected final Component timer = create(JavaTimer.class, Init.NONE);
@@ -47,6 +47,7 @@ public class HostComponent extends ComponentDefinition {
     protected final Component parent = create(ParentComponent.class, Init.NONE);
 
     {
+        LOG.debug("Host: " + id());
         connect(timer.getPositive(Timer.class), parent.getNegative(Timer.class), Channel.TWO_WAY);
         connect(net.getPositive(Network.class), parent.getNegative(Network.class), Channel.TWO_WAY);
     }

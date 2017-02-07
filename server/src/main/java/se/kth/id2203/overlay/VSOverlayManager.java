@@ -62,16 +62,23 @@ public class VSOverlayManager extends ComponentDefinition {
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private LookupTable lut = null;
     //******* Handlers ******
+
+    /**
+     * Bootstrap server requests to get initial assignment to partitions
+     */
     protected final Handler<GetInitialAssignments> initialAssignmentHandler = new Handler<GetInitialAssignments>() {
 
         @Override
         public void handle(GetInitialAssignments event) {
             LOG.info("Generating LookupTable...");
-            LookupTable lut = LookupTable.generate(event.nodes);
+            LookupTable lut = LookupTable.generate(event.nodes, event.replicationDegree, event.keySpace);
             LOG.debug("Generated assignments:\n{}", lut);
             trigger(new InitialAssignments(lut), boot);
         }
     };
+    /**
+     * Bootstrap client informs that bootup completed, event included the partition assignment
+     */
     protected final Handler<Booted> bootHandler = new Handler<Booted>() {
 
         @Override
@@ -84,6 +91,11 @@ public class VSOverlayManager extends ComponentDefinition {
             }
         }
     };
+
+    /**
+     * Some operation for the key-value store to be routed. Retrieve the set of servers for the partition and route
+     * message to a randomly selected server
+     */
     protected final ClassMatchedHandler<RouteMsg, Message> routeHandler = new ClassMatchedHandler<RouteMsg, Message>() {
 
         @Override
@@ -94,6 +106,10 @@ public class VSOverlayManager extends ComponentDefinition {
             trigger(new Message(context.getSource(), target, content.msg), net);
         }
     };
+
+    /**
+     * Locally routed message
+     */
     protected final Handler<RouteMsg> localRouteHandler = new Handler<RouteMsg>() {
 
         @Override
@@ -104,6 +120,10 @@ public class VSOverlayManager extends ComponentDefinition {
             trigger(new Message(self, target, event.msg), net);
         }
     };
+
+    /**
+     * Client wants to connect, either reject or respond with Ack that connect was accepted.
+     */
     protected final ClassMatchedHandler<Connect, Message> connectHandler = new ClassMatchedHandler<Connect, Message>() {
 
         @Override
@@ -117,6 +137,7 @@ public class VSOverlayManager extends ComponentDefinition {
             }
         }
     };
+
 
     /**
      * Kompics "instance initializer", subscribe handlers to ports.

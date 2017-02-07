@@ -27,11 +27,18 @@ import com.google.common.collect.ImmutableSet;
 import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.KompicsEvent;
 
+/**
+ * Message sent locally from BootstrapServer to VSOverlayManager
+ */
 public class GetInitialAssignments implements KompicsEvent {
 
     public final ImmutableSet<NetAddress> nodes;
+    public final int replicationDegree;
+    public final int keySpace;
 
-    public GetInitialAssignments(final ImmutableSet<NetAddress> nodes) {
+    public GetInitialAssignments(final ImmutableSet<NetAddress> nodes, int replicationDegree, int keySpace) {
         this.nodes = nodes;
+        this.replicationDegree = replicationDegree;
+        this.keySpace = keySpace;
     }
 }

@@ -29,10 +29,10 @@ import se.kth.id2203.kvstore.OpResponse.Code;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.overlay.Routing;
-import se.sics.kompics.ClassMatchedHandler;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Positive;
+import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
+
+import java.util.HashMap;
 
 /**
  * ServiceComponent that handles the actual operation-requests from clients and return results.
@@ -47,22 +47,38 @@ public class KVService extends ComponentDefinition {
     protected final Positive<Routing> route = requires(Routing.class);
     //******* Fields ******
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
+    final HashMap<Integer, String> keyValues = new HashMap<>();
     //******* Handlers ******
-    protected final ClassMatchedHandler<Operation, Message> opHandler = new ClassMatchedHandler<Operation, Message>() {
 
+    protected final Handler<Start> startHandler = new Handler<Start>() {
+        @Override
+        public void handle(Start start) {
+            keyValues.put("1".hashCode(), "first");
+        }
+    };
+
+    /**
+     * Operation request received, perform operation and return result.
+     */
+    protected final ClassMatchedHandler<Operation, Message> opHandler = new ClassMatchedHandler<Operation, Message>() {
         @Override
         public void handle(Operation content, Message context) {
             LOG.info("Got operation {}! Now implement me please :)", content);
-            trigger(new Message(self, context.getSource(), new OpResponse(content.id, Code.NOT_IMPLEMENTED)), net);
+            switch (content.operationCode) {
+                case GET:
+                    trigger(new Message(self, context.getSource(), new OpResponse(content.id, Code.OK, keyValues.get(content.key.hashCode()))), net);
+                default:
+                    trigger(new Message(self, context.getSource(), new OpResponse(content.id, Code.NOT_IMPLEMENTED)), net);
+            }
         }
 
     };
 
     /**
      * Kompics "instance initializer", subscribe handlers to ports.
-     */
-    {
+     */ {
         subscribe(opHandler, net);
+        subscribe(startHandler, control);
     }
 
 }

@@ -27,7 +27,7 @@ import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;
 
 /**
- *
+ * Timeout that causes the bootstrap-server to check if enough servers have checked in in order to initialize bootUp.
  * @author Lars Kroll <lkroll@kth.se>
  */
 public class BSTimeout extends Timeout {

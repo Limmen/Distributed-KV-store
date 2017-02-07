@@ -8,11 +8,7 @@ import se.kth.id2203.kvstore.KVService;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.overlay.Routing;
 import se.kth.id2203.overlay.VSOverlayManager;
-import se.sics.kompics.Channel;
-import se.sics.kompics.Component;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Init;
-import se.sics.kompics.Positive;
+import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 
@@ -47,5 +43,11 @@ public class ParentComponent
         // KV
         connect(overlay.getPositive(Routing.class), kv.getNegative(Routing.class), Channel.TWO_WAY);
         connect(net, kv.getNegative(Network.class), Channel.TWO_WAY);
+    }
+
+    @Override
+    public Fault.ResolveAction handleFault(Fault fault){
+        System.out.println("Parent fault: " + fault.getEvent());
+        return  null;
     }
 }
