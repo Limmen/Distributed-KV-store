@@ -26,18 +26,22 @@ package se.kth.id2203.overlay;
 import com.larskroll.common.J6;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import se.kth.id2203.bootstrapping.events.Booted;
 import se.kth.id2203.bootstrapping.events.GetInitialAssignments;
 import se.kth.id2203.bootstrapping.events.InitialAssignments;
 import se.kth.id2203.bootstrapping.ports.Bootstrapping;
+import se.kth.id2203.kvstore.events.ReplicationInit;
+import se.kth.id2203.kvstore.ports.KVPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.events.OverlayInit;
+import se.kth.id2203.overlay.ports.Routing;
 import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * The V(ery)S(imple)OverlayManager.
@@ -59,10 +63,16 @@ public class VSOverlayManager extends ComponentDefinition {
     protected final Positive<Bootstrapping> boot = requires(Bootstrapping.class);
     protected final Positive<Network> net = requires(Network.class);
     protected final Positive<Timer> timer = requires(Timer.class);
+    protected final Positive<KVPort> kvPort = requires(KVPort.class);
     //******* Fields ******
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private LookupTable lut = null;
+    private Component kvService;
     //******* Handlers ******
+
+    public VSOverlayManager(OverlayInit overlayInit) {
+        this.kvService = overlayInit.kvService;
+    }
 
     /**
      * Bootstrap server requests to get initial assignment to partitions
@@ -87,6 +97,9 @@ public class VSOverlayManager extends ComponentDefinition {
             if (event.assignment instanceof LookupTable) {
                 LOG.info("Got NodeAssignment, overlay ready.");
                 lut = (LookupTable) event.assignment;
+                int key = lut.reverseLookup(self);
+                Collection<NetAddress> replicationGroup = lut.lookup(key);
+                trigger(new ReplicationInit((Set) replicationGroup), kvPort);
             } else {
                 LOG.error("Got invalid NodeAssignment type. Expected: LookupTable; Got: {}", event.assignment.getClass());
             }
@@ -142,8 +155,7 @@ public class VSOverlayManager extends ComponentDefinition {
 
     /**
      * Kompics "instance initializer", subscribe handlers to ports.
-     */
-    {
+     */ {
         subscribe(initialAssignmentHandler, boot);
         subscribe(bootHandler, boot);
         subscribe(routeHandler, net);

@@ -1,37 +1,22 @@
 package se.kth.id2203.epfd;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-
-import se.kth.id2203.bootstrapping.BSTimeout;
-import se.kth.id2203.epfd.events.EPFDInit;
-import se.kth.id2203.epfd.events.HBReply;
-import se.kth.id2203.epfd.events.HBRequest;
-import se.kth.id2203.epfd.events.Restore;
-import se.kth.id2203.epfd.events.Suspect;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import se.kth.id2203.epfd.events.*;
 import se.kth.id2203.epfd.ports.EPFDPort;
 import se.kth.id2203.epfd.timeout.EPFDTimeout;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
-import se.kth.id2203.overlay.Routing;
-import se.kth.id2203.overlay.VSOverlayManager;
-import se.sics.kompics.ClassMatchedHandler;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Handler;
-import se.sics.kompics.KompicsException;
-import se.sics.kompics.Negative;
-import se.sics.kompics.Positive;
-import se.sics.kompics.Start;
+import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timer;
+
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 
 public class EPFD extends ComponentDefinition {
 
@@ -42,39 +27,43 @@ public class EPFD extends ComponentDefinition {
 	protected final Positive<Timer> timer = requires(Timer.class);
 
 	private final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
-	private final long delta;
+	private final long delta = config().getValue("id2203.project.epfd.delta", Long.class);
 	private UUID timeoutId;
-	private long seqnum;
+	private long seqnum = 0;
 	private long delay;
 	
-	private final Set<NetAddress> all;
-	private final Set<NetAddress> alive;
-	private final Set<NetAddress> suspected;
-
-	public EPFD(EPFDInit init) {
-		alive = ImmutableSet.copyOf(init.nodes);
-		all = ImmutableSet.copyOf(init.nodes);
-		suspected = new HashSet<>();
-		seqnum = 0;
-		delta = config().getValue("id2203.project.epfd.delta", Long.class);
-		delay = delta;
-	}
+	private Set<NetAddress> all = new HashSet<>();
+	private Set<NetAddress> alive = new HashSet<>();
+	private Set<NetAddress> suspected = new HashSet<>();
 
 	protected final Handler<Start> startHandler = new Handler<Start>() {
 		@Override
 		public void handle(Start e) {
+            delay = delta;
 			LOG.info("Starting epfd with delta {} and delay {}", delta, delay);
 			SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(delay, delay);
 			spt.setTimeoutEvent(new EPFDTimeout(spt));
 			trigger(spt, timer);
 			timeoutId = spt.getTimeoutEvent().getTimeoutId();
-		}
+        }
 	};
 
-	Handler<EPFDTimeout> timeoutHandler = new Handler<EPFDTimeout>() {
+    protected final Handler<EPFDInit> initHandler = new Handler<EPFDInit>() {
+        @Override
+        public void handle(EPFDInit epfdInit) {
+            LOG.debug("EPFD Initialized, monitoring {} processes", epfdInit.nodes.size());
+            alive = ImmutableSet.copyOf(epfdInit.nodes);
+            all = ImmutableSet.copyOf(epfdInit.nodes);
+            suspected = new HashSet<>();
+            seqnum = 0;
+            delay = delta;
+        }
+    };
+
+    protected  final Handler<EPFDTimeout> timeoutHandler = new Handler<EPFDTimeout>() {
 		@Override
 		public void handle(EPFDTimeout event) {
-			if(Sets.intersection(alive, suspected).size() == 0){
+            if(!(Sets.intersection(alive, suspected).size() == 0)){
 				LOG.info("We detected premature-crash, increasing timeout with delta {}",delta);
 				delay = delay + delta;
 			}
@@ -90,9 +79,9 @@ public class EPFD extends ComponentDefinition {
 					trigger(new Restore(node), epfd);
 				}
 				HBRequest req = new HBRequest(seqnum);
-				trigger(new Message(self,node,req) ,net);
+                trigger(new Message(self,node,req) ,net);
 			}
-			alive.clear();
+			alive = new HashSet<>();
 		}
 	};
 
@@ -120,6 +109,7 @@ public class EPFD extends ComponentDefinition {
 		subscribe(timeoutHandler, timer);
 		subscribe(requestHandler, net);
 		subscribe(replyHandler, net);
+        subscribe(initHandler, epfd);
 	}
 
 }

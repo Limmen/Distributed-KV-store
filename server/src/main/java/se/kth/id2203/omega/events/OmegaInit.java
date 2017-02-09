@@ -1,12 +1,11 @@
 package se.kth.id2203.omega.events;
 
+import se.kth.id2203.networking.NetAddress;
+import se.sics.kompics.KompicsEvent;
+
 import java.util.Set;
 
-import se.kth.id2203.networking.NetAddress;
-import se.kth.id2203.omega.Omega;
-import se.sics.kompics.Init;
-
-public class OmegaInit extends Init<Omega> {
+public class OmegaInit implements KompicsEvent {
 	
 	public final Set<NetAddress> nodes;
 	

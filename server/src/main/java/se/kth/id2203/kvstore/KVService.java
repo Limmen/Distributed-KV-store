@@ -23,12 +23,18 @@
  */
 package se.kth.id2203.kvstore;
 
+import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import se.kth.id2203.gms.events.View;
 import se.kth.id2203.kvstore.OpResponse.Code;
+import se.kth.id2203.kvstore.events.ReplicationInit;
+import se.kth.id2203.kvstore.ports.KVPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
-import se.kth.id2203.overlay.Routing;
+import se.kth.id2203.overlay.ports.Routing;
+import se.kth.id2203.vsync.events.VSyncInit;
+import se.kth.id2203.vsync.ports.VSyncPort;
 import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 
@@ -45,9 +51,12 @@ public class KVService extends ComponentDefinition {
     //******* Ports ******
     protected final Positive<Network> net = requires(Network.class);
     protected final Positive<Routing> route = requires(Routing.class);
+    protected final Positive<VSyncPort> vSyncPort = requires(VSyncPort.class);
+    protected final Negative<KVPort> kvPort = provides(KVPort.class);
     //******* Fields ******
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     final HashMap<Integer, String> keyValues = new HashMap<>();
+    private View replicationGroup;
     //******* Handlers ******
 
     protected final Handler<Start> startHandler = new Handler<Start>() {
@@ -74,11 +83,30 @@ public class KVService extends ComponentDefinition {
 
     };
 
+    protected final Handler<View> viewHandler = new Handler<View>() {
+        @Override
+        public void handle(View view) {
+            LOG.debug("KVService recieved new view from VSyncService");
+            replicationGroup = view;
+        }
+    };
+
+    protected final Handler<ReplicationInit> replicationInitHandler = new Handler<ReplicationInit>() {
+        @Override
+        public void handle(ReplicationInit replicationInit) {
+            LOG.info("KVService initializes replication group");
+            trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes)), vSyncPort);
+        }
+    };
+
     /**
      * Kompics "instance initializer", subscribe handlers to ports.
-     */ {
+     */
+    {
         subscribe(opHandler, net);
         subscribe(startHandler, control);
+        subscribe(viewHandler, vSyncPort);
+        subscribe(replicationInitHandler, kvPort);
     }
 
 }

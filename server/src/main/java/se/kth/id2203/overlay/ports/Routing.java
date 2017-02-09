@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.overlay;
+package se.kth.id2203.overlay.ports;
 
+import se.kth.id2203.overlay.RouteMsg;
 import se.sics.kompics.PortType;
 
 /**

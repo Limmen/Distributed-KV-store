@@ -1,15 +1,15 @@
-package se.kth.id2203.epfd.events;
+package se.kth.id2203.kvstore.events;
 
 import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.KompicsEvent;
 
 import java.util.Set;
 
-public class EPFDInit implements KompicsEvent {
-	
+public class ReplicationInit implements KompicsEvent {
+
 	public final Set<NetAddress> nodes;
-	
-	public EPFDInit(Set<NetAddress> nodes){
+
+	public ReplicationInit(Set<NetAddress> nodes){
 		this.nodes = nodes;
 	}
 

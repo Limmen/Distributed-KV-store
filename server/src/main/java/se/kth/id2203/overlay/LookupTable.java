@@ -51,6 +51,23 @@ public class LookupTable implements NodeAssignment {
         return partitions.get(partition);
     }
 
+    public Collection<NetAddress> lookup(int keyHash) {
+        Integer partition = partitions.keySet().floor(keyHash);
+        if (partition == null) {
+            partition = partitions.keySet().last();
+        }
+        return partitions.get(partition);
+    }
+
+    public int reverseLookup(NetAddress node){
+        for (int key: partitions.keySet()) {
+            Collection<NetAddress> partition = partitions.get(key);
+            if(partition.contains(node))
+                return key;
+        }
+        return -1;
+    }
+
     public Collection<NetAddress> getNodes() {
         return partitions.values();
     }

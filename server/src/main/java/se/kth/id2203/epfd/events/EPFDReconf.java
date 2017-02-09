@@ -5,11 +5,11 @@ import se.sics.kompics.KompicsEvent;
 
 import java.util.Set;
 
-public class EPFDInit implements KompicsEvent {
-	
+public class EPFDReconf implements KompicsEvent {
+
 	public final Set<NetAddress> nodes;
-	
-	public EPFDInit(Set<NetAddress> nodes){
+
+	public EPFDReconf(Set<NetAddress> nodes){
 		this.nodes = nodes;
 	}
 

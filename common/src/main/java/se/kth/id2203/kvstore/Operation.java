@@ -52,6 +52,7 @@ public class Operation implements KompicsEvent, Serializable {
         return MoreObjects.toStringHelper(this)
                 .add("id", id)
                 .add("key", key)
+                .add("Op",operationCode)
                 .toString();
     }
 

@@ -5,7 +5,7 @@ import se.sics.kompics.timer.Timeout;
 
 public class OmegaTimeout extends Timeout {
 
-	protected OmegaTimeout(SchedulePeriodicTimeout request) {
+	public OmegaTimeout(SchedulePeriodicTimeout request) {
 		super(request);
 	}
 
