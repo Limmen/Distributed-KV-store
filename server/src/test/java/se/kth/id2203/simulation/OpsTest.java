@@ -23,7 +23,14 @@
  */
 package se.kth.id2203.simulation;
 
+import org.junit.Assert;
 import org.junit.Test;
+
+import se.kth.id2203.simulation.result.SimulationResultMap;
+import se.kth.id2203.simulation.result.SimulationResultSingleton;
+import se.kth.id2203.simulation.scenario.ScenarioGen;
+import se.sics.kompics.simulator.SimulationScenario;
+import se.sics.kompics.simulator.run.LauncherComp;
 
 /**
  *
@@ -32,20 +39,19 @@ import org.junit.Test;
 public class OpsTest {
     
     private static final int NUM_MESSAGES = 10;
-    private final SimulationResultMap res = SimulationResultSingleton.getInstance();
+    private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
-    @Test
-    public void simpleOpsTest() {
-        /*
+    public static void main(String[] args) {
+        
         long seed = 123;
         SimulationScenario.setSeed(seed);
         SimulationScenario simpleBootScenario = ScenarioGen.simpleOps(3);
         res.put("messages", NUM_MESSAGES);
         simpleBootScenario.simulate(LauncherComp.class);
         for (int i = 0; i < NUM_MESSAGES; i++) {
-            Assert.assertEquals("NOT_IMPLEMENTED", res.get("test"+i, String.class));
+            Assert.assertEquals("OK", res.get("test"+i, String.class));
             // of course the correct response should be SUCCESS not NOT_IMPLEMENTED, but like this the test passes
-        } */
+        }
     }
 
 }

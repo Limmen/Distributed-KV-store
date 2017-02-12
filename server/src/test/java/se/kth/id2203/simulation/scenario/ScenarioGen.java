@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.simulation;
+package se.kth.id2203.simulation.scenario;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -32,9 +32,12 @@ import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.Init;
 import se.sics.kompics.network.Address;
 import se.sics.kompics.simulator.SimulationScenario;
+import se.sics.kompics.simulator.adaptor.Operation;
 import se.sics.kompics.simulator.adaptor.Operation1;
 import se.sics.kompics.simulator.adaptor.distributions.extra.BasicIntSequentialDistribution;
+import se.sics.kompics.simulator.events.system.KillNodeEvent;
 import se.sics.kompics.simulator.events.system.StartNodeEvent;
+import se.kth.id2203.simulation.gv.SimulationObserver;
 
 /**
  *
@@ -140,6 +143,74 @@ public abstract class ScenarioGen {
         }
     };
 
+    static Operation startObserverOp = new Operation<StartNodeEvent>() {
+        @Override
+        public StartNodeEvent generate() {
+            return new StartNodeEvent() {
+                NetAddress selfAdr;
+
+                {
+                    try {
+                        selfAdr = new NetAddress(InetAddress.getByName("0.0.0.0"), 0);
+                    } catch (UnknownHostException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
+                public Map<String, Object> initConfigUpdate() {
+                    HashMap<String, Object> config = new HashMap<>();
+                    config.put("kvstore.simulation.checktimeout", 2000);
+                    return config;
+                }
+                
+                @Override
+                public Address getNodeAddress() {
+                    return selfAdr;
+                }
+
+                @Override
+                public Class getComponentDefinition() {
+                    return SimulationObserver.class;
+                }
+
+                @Override
+                public Init getComponentInit() {
+                    return new SimulationObserver.Init(3);
+                }
+            };
+        }
+    };
+    
+    static Operation1 killNodeOp = new Operation1<KillNodeEvent, Integer>() {
+        @Override
+        public KillNodeEvent generate(final Integer self) {
+            return new KillNodeEvent() {
+                NetAddress selfAdr;
+
+                {
+                    try {
+                    	selfAdr = new NetAddress(InetAddress.getByName("192.168.0." + self), 45678);
+                    } catch (UnknownHostException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+                
+                @Override
+                public Address getNodeAddress() {
+                    return selfAdr;
+                }
+                
+                @Override
+                public String toString() {
+                    return "KillNode<" + selfAdr.toString() + ">";
+                }
+            };
+        }
+    };
+    
+    
+    
     public static SimulationScenario simpleOps(final int servers) {
         return new SimulationScenario() {
             {
@@ -161,5 +232,39 @@ public abstract class ScenarioGen {
                 terminateAfterTerminationOf(100000, startClients);
             }
         };
+    }
+    
+    public static SimulationScenario killNodes(final int servers) {
+        SimulationScenario scen = new SimulationScenario() {
+            {
+                
+                SimulationScenario.StochasticProcess observer = new SimulationScenario.StochasticProcess() {
+                    {
+                        raise(1, startObserverOp);
+                    }
+                };
+
+                SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(servers, startServerOp, new BasicIntSequentialDistribution(1));
+                    }
+                };
+                
+                SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(0));
+                        raise(servers, killNodeOp, new BasicIntSequentialDistribution((1)));
+                    }  
+                };
+
+                observer.start();
+                startCluster.startAfterStartOf(1000, observer);
+                killNode.startAfterTerminationOf(1000, startCluster);
+                terminateAfterTerminationOf(1000*10000, startCluster);
+            }
+        };
+
+        return scen;
     }
 }
