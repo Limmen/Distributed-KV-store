@@ -1,4 +1,4 @@
-# ID2203 Project 2017 Starter Code
+# ID2203 Project
 
 The goal of the project is to implement and test and simple partitioned, distributed in-memory key-value store with linearisable operation semantics.
 
@@ -59,11 +59,14 @@ The client will attempt to contact the bootstrap server and give you a small com
 
 ## Authors
 
-Template provided by Lars Kroll, lkroll@kth.se
+Template provided by 
+
+Lars Kroll, lkroll@kth.se
 
 Algorithms and tests written by
 
 Kim Hammar, kimham@kth.se
+
 Konstantin Sozinov, sozinov@kth.se
 
 
