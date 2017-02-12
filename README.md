@@ -1,7 +1,6 @@
 # ID2203 Project 2017 Starter Code
 
-This project contains some code to get you started with the project.
-You are encourage to create your own forks and work on them, modifying everything and anything as you desire it.
+The goal of the project is to implement and test and simple partitioned, distributed in-memory key-value store with linearisable operation semantics.
 
 ## Overview
 
@@ -58,8 +57,13 @@ Again, make sure not to double allocate ports on the same machine.
 
 The client will attempt to contact the bootstrap server and give you a small command promt if successful. Type `help` to see the available commands.
 
-## Issues
-If you find a bug please create an issue on git, or create a pull request with a fix.
+## Authors
 
-If there are other questions, try to talk to the other students and only if that doesn't help write me an email at <lkroll@kth.se>. Or, of course, ask at a lab session.
+Template provided by Lars Kroll, lkroll@kth.se
+
+Algorithms and tests written by
+
+Kim Hammar, kimham@kth.se
+Konstantin Sozinov, sozinov@kth.se
+
 
