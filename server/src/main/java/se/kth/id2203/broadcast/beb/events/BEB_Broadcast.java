@@ -10,11 +10,11 @@ import java.util.Set;
  */
 public class BEB_Broadcast implements KompicsEvent {
 
-    public final KompicsEvent message;
+    public final KompicsEvent payload;
     public final Set<NetAddress> nodes;
 
-    public BEB_Broadcast(KompicsEvent message, Set<NetAddress> nodes) {
-        this.message = message;
+    public BEB_Broadcast(KompicsEvent payload, Set<NetAddress> nodes) {
+        this.payload = payload;
         this.nodes = nodes;
     }
 }

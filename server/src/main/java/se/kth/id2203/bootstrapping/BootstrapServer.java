@@ -49,7 +49,7 @@ import java.util.UUID;
 /**
  * BootstrapServer, used by the first node in the cluster, hosts a type of handshake protocol that allows more servers
  * to join the cluster. Servers can check in at the bootstrap server and when enough servers are checked in the
- * bootstrapServer will generate a initial node-partition and then send it in a Boot-message that commands the other
+ * bootstrapServer will generate a initial node-partition and then send it in a Boot-payload that commands the other
  * servers to "boot up" (booting in this context is starting the KV-store).
  */
 public class BootstrapServer extends ComponentDefinition {

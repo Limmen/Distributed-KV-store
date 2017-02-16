@@ -70,7 +70,7 @@ public class Console implements Runnable {
             @Override
             public boolean execute(String[] cmdline, ClientService worker) {
                     if (cmdline.length == 2) {
-                        Future<OpResponse> fr = worker.op(cmdline[1], Operation.OperationCode.GET);
+                        Future<OpResponse> fr = worker.op(cmdline[1], "", Operation.OperationCode.GET);
                         out.println("Get-Operation sent! Awaiting response...");
                         try {
                             OpResponse r = fr.get();
@@ -93,7 +93,40 @@ public class Console implements Runnable {
 
             @Override
             public String help() {
-                return "Just a test operation...replace with proper put get";
+                return "GET operation";
+            }
+        });
+
+        commands.put("put", new Command() {
+
+            @Override
+            public boolean execute(String[] cmdline, ClientService worker) {
+                String[] temp = cmdline[1].split(" ");
+                if (temp.length == 2) {
+                    Future<OpResponse> fr = worker.op(temp[0], temp[1], Operation.OperationCode.PUT);
+                    out.println("Put-Operation sent! Awaiting response...");
+                    try {
+                        OpResponse r = fr.get();
+                        out.println("Operation complete! Response was: " + r.status + " value: " + r.value);
+                        return true;
+                    } catch (InterruptedException | ExecutionException ex) {
+                        ex.printStackTrace(out);
+                        return false;
+                    }
+
+                } else {
+                    return false;
+                }
+            }
+
+            @Override
+            public String usage() {
+                return "op <key> <value>";
+            }
+
+            @Override
+            public String help() {
+                return "PUT operation";
             }
         });
 

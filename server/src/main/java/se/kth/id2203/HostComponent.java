@@ -39,9 +39,10 @@ import se.sics.kompics.timer.java.JavaTimer;
  * @author Lars Kroll <lkroll@kth.se>
  */
 public class HostComponent extends ComponentDefinition {
+    /* Fields */
     final static Logger LOG = LoggerFactory.getLogger(HostComponent.class);
-
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
+    /* Children */
     protected final Component timer = create(JavaTimer.class, Init.NONE);
     protected final Component net = create(NettyNetwork.class, new NettyInit(self));
     protected final Component parent = create(ParentComponent.class, Init.NONE);

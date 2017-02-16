@@ -9,36 +9,68 @@ import se.kth.id2203.broadcast.beb.ports.BEBPort;
 import se.kth.id2203.epfd.events.Restore;
 import se.kth.id2203.epfd.events.Suspect;
 import se.kth.id2203.epfd.ports.EPFDPort;
-import se.kth.id2203.gms.events.GMSInit;
-import se.kth.id2203.gms.events.View;
+import se.kth.id2203.gms.events.*;
 import se.kth.id2203.gms.ports.GMSPort;
+import se.kth.id2203.gms.timeout.GMSTimeout;
+import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.omega.events.OmegaInit;
 import se.kth.id2203.omega.events.Trust;
 import se.kth.id2203.omega.ports.OmegaPort;
-import se.sics.kompics.ComponentDefinition;
-import se.sics.kompics.Handler;
-import se.sics.kompics.Negative;
-import se.sics.kompics.Positive;
+import se.sics.kompics.*;
+import se.sics.kompics.network.Network;
+import se.sics.kompics.timer.SchedulePeriodicTimeout;
+import se.sics.kompics.timer.Timer;
 
+import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 /**
+ * Group membership service, provides monotonicity, agreement and completeness but not accuracy.
+ * Resilience: N/2 -1, can only tolerate a minority of processes failing, view always contains atleast a
+ * quorum of processes.
+ *
  * @author Kim Hammar on 2017-02-08.
  */
 public class GMS extends ComponentDefinition {
 
-    final static Logger LOG = LoggerFactory.getLogger(GMS.class);
+    /* Ports */
+    protected final Positive<Network> net = requires(Network.class);
+    protected final Positive<Timer> timer = requires(Timer.class);
     protected final Negative<GMSPort> gmsPort = provides(GMSPort.class);
     protected final Positive<OmegaPort> omegaPort = requires(OmegaPort.class);
     protected final Positive<EPFDPort> epfdPort = requires(EPFDPort.class);
     protected final Positive<BEBPort> broadcastPort = requires(BEBPort.class);
+    /* Fields */
+    final static Logger LOG = LoggerFactory.getLogger(GMS.class);
     private long viewId;
     private Set<NetAddress> members;
     private final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private NetAddress leader = null;
     private Role role;
+    private UUID timeoutId;
+    private View currentView;
+    private View pendingView = null;
+    private Set<NetAddress> acks = new HashSet();
 
+    /**
+     * Setup timer
+     */
+    protected final Handler<Start> startHandler = new Handler<Start>() {
+        @Override
+        public void handle(Start e) {
+            long timeout = 4000;
+            SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(timeout, timeout);
+            spt.setTimeoutEvent(new GMSTimeout(spt));
+            trigger(spt, timer);
+            timeoutId = spt.getTimeoutEvent().getTimeoutId();
+        }
+    };
+
+    /**
+     * Initialize group membership service for a set of processes
+     */
     protected final Handler<GMSInit> gmsInitHandler = new Handler<GMSInit>() {
         @Override
         public void handle(GMSInit gmsInit) {
@@ -46,11 +78,41 @@ public class GMS extends ComponentDefinition {
             viewId = 0;
             members = ImmutableSet.copyOf(gmsInit.nodes);
             role = Role.WORKER;
+            currentView = new View(ImmutableSet.copyOf(members), viewId, null);
             trigger(new OmegaInit(ImmutableSet.copyOf(gmsInit.nodes)), omegaPort);
         }
     };
 
-    protected  final Handler<Trust> trustedHandler = new Handler<Trust>() {
+    /**
+     * If new view should be installed and we are the leader, try to collect quorum of ACKS and then commit the new
+     * view.
+     */
+    protected final Handler<GMSTimeout> timeoutHandler = new Handler<GMSTimeout>() {
+        @Override
+        public void handle(GMSTimeout event) {
+            if (role == Role.LEADER && pendingView != null && pendingView.id > currentView.id) {
+                Set<NetAddress> notAcked = new HashSet<>();
+                for (NetAddress member : members) {
+                    if (!acks.contains(member))
+                        notAcked.add(member);
+                }
+                if (notAcked.size() > 0) {
+                    LOG.debug("I'm leader in my currentView, sending currentView proposal and collecting ACKs");
+                    trigger(new BEB_Broadcast(new ViewProposal(pendingView), notAcked), broadcastPort);
+                } else {
+                    trigger(new BEB_Broadcast(new ViewCommit(pendingView), pendingView.members), broadcastPort);
+                    currentView = pendingView;
+                    pendingView = null;
+                    acks = new HashSet<>();
+                }
+            }
+        }
+    };
+
+    /**
+     * Omega indicates that a new leader is elected
+     */
+    protected final Handler<Trust> trustedHandler = new Handler<Trust>() {
         @Override
         public void handle(Trust trusted) {
             LOG.info("GMS: New leader elected: {}", trusted.trusted);
@@ -59,53 +121,97 @@ public class GMS extends ComponentDefinition {
                 role = Role.LEADER;
             } else
                 role = Role.WORKER;
+            viewChange();
         }
     };
 
+    /**
+     * EPFD suspect some process
+     */
     protected final Handler<Suspect> suspectHandler = new Handler<Suspect>() {
         @Override
         public void handle(Suspect event) {
-            if(event.suspected.equals(leader) && role == Role.WORKER){
+            if (event.suspected.equals(leader) && role == Role.WORKER) {
                 LOG.info("GMS: Worker detected crash of leader");
             }
             if (role == Role.LEADER) {
-                LOG.info("GMS: Leader detected crash, broadcasting new view");
-                viewId++;
-                members.remove(event.suspected);
-                View view = new View(members, viewId, self);
-                trigger(new BEB_Broadcast(view, members), broadcastPort);
-                trigger(view, gmsPort);
+                LOG.info("GMS: Leader detected crash, updating currentView");
+                if (event.suspected != null)
+                    members.remove(event.suspected);
             }
+            viewChange();
         }
     };
 
-    protected  final Handler<Restore> restoreHandler = new Handler<Restore>() {
+    /**
+     * Have received information from EPFD/Omega that should trigger a view change, if this node views itself as leader
+     * it will attempt to propose the new view to a quorum.
+     */
+    private void viewChange() {
+        if (!currentView.sameView(members, leader) && role == Role.LEADER) {
+            acks = new HashSet<>();
+            viewId++;
+            pendingView = new View(ImmutableSet.copyOf(members), viewId, new NetAddress(self));
+        }
+    }
+
+    protected final Handler<Restore> restoreHandler = new Handler<Restore>() {
         @Override
         public void handle(Restore event) {
-            //TODO, should processes be added to the view again?
+            //TODO, should processes be added to the currentView again?
         }
     };
 
-    protected  final Handler<BEB_Deliver> viewHandler = new Handler<BEB_Deliver>() {
+    /**
+     * Received new view-proposal from some process.
+     * Only ACK a view-proposal from the leader that Omega indicated. Otherwise ignore.
+     */
+    protected final ClassMatchedHandler<ViewProposal, BEB_Deliver> viewProposalHandler = new ClassMatchedHandler<ViewProposal, BEB_Deliver>() {
         @Override
-        public void handle(BEB_Deliver BEBDeliver) {
-            LOG.info("GMS: Received new view from leader");
-            if(role == Role.WORKER) {
-                View view = (View) BEBDeliver.message;
-                if (view.leader.equals(leader)) {
-                    members = view.members;
-                    viewId = view.id;
-                    trigger(view, gmsPort);
-                }
-            }
+        public void handle(ViewProposal viewProposal, BEB_Deliver beb_deliver) {
+            LOG.debug("GMS Peer received currentView proposal");
+            if (leader != null && leader.sameHostAs(viewProposal.view.leader))
+                trigger(new Message(self, viewProposal.view.leader, new ViewAcc(viewProposal.view.id)), net);
+        }
+    };
+
+    /**
+     * Received a view-commit, i.e some leader received quorum of ACKS and committed a new view.
+     */
+    protected final ClassMatchedHandler<ViewCommit, BEB_Deliver> viewCommitHandler = new ClassMatchedHandler<ViewCommit, BEB_Deliver>() {
+        @Override
+        public void handle(ViewCommit viewCommit, BEB_Deliver beb_deliver) {
+            LOG.debug("GMS Peer received currentView commit, delivering new currentView");
+            currentView = viewCommit.view;
+            pendingView = null;
+            acks = new HashSet<>();
+            viewId = currentView.id;
+            trigger(currentView, gmsPort);
+        }
+    };
+
+    /**
+     * Received ACK from some member in group
+     */
+    protected final ClassMatchedHandler<ViewAcc, Message> ackHandler = new ClassMatchedHandler<ViewAcc, Message>() {
+        @Override
+        public void handle(ViewAcc viewAcc, Message message) {
+            LOG.debug("Received ACK for currentView proposal");
+            if (viewAcc.viewId == pendingView.id)
+                acks.add(message.getSource());
         }
     };
 
     {
+        subscribe(ackHandler, net);
+        subscribe(viewProposalHandler, broadcastPort);
+        subscribe(viewCommitHandler, broadcastPort);
         subscribe(trustedHandler, omegaPort);
-        subscribe(viewHandler, broadcastPort);
         subscribe(suspectHandler, epfdPort);
+        subscribe(restoreHandler, epfdPort);
         subscribe(gmsInitHandler, gmsPort);
+        subscribe(startHandler, control);
+        subscribe(timeoutHandler, timer);
     }
 
     public enum Role {

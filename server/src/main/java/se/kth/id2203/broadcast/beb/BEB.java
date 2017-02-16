@@ -7,7 +7,6 @@ import se.kth.id2203.broadcast.beb.events.BEB_Deliver;
 import se.kth.id2203.broadcast.beb.ports.BEBPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
-import se.kth.id2203.overlay.VSOverlayManager;
 import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 
@@ -16,7 +15,7 @@ import se.sics.kompics.network.Network;
  */
 public class BEB extends ComponentDefinition {
 
-    final static Logger LOG = LoggerFactory.getLogger(VSOverlayManager.class);
+    final static Logger LOG = LoggerFactory.getLogger(BEB.class);
     protected final Positive<Network> net = requires(Network.class);
     protected final Negative<BEBPort> broadcastPort = provides(BEBPort.class);
     private final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
@@ -24,9 +23,9 @@ public class BEB extends ComponentDefinition {
     protected final Handler<BEB_Broadcast> broadcastHandler = new Handler<BEB_Broadcast>() {
         @Override
         public void handle(BEB_Broadcast BEBBroadcast) {
-            LOG.debug("Broadcasted {} to {} nodes", BEBBroadcast.message, BEBBroadcast.nodes.size());
+            LOG.debug("Broadcasted {} to {} nodes", BEBBroadcast.payload.getClass(), BEBBroadcast.nodes.size());
             for (NetAddress recipient : BEBBroadcast.nodes) {
-                BEB_Deliver BEBDeliver = new BEB_Deliver(BEBBroadcast.message, self);
+                BEB_Deliver BEBDeliver = new BEB_Deliver(BEBBroadcast.payload, self);
                 trigger(new Message(self, recipient, BEBDeliver), net);
             }
         }
@@ -36,13 +35,13 @@ public class BEB extends ComponentDefinition {
         @Override
         public void handle(BEB_Deliver BEBDeliver, Message message) {
             LOG.debug("Received broadcast from {}", message.getSource());
-            trigger(BEBDeliver.message, broadcastPort);
+            trigger(BEBDeliver, broadcastPort);
         }
     };
 
-
     {
         subscribe(broadcastHandler, broadcastPort);
+        subscribe(deliverHandler, net);
     }
 
 }

@@ -23,9 +23,10 @@
  */
 package se.kth.id2203.networking;
 
-import java.io.Serializable;
 import se.sics.kompics.network.Msg;
 import se.sics.kompics.network.Transport;
+
+import java.io.Serializable;
 
 public abstract class NetMessage implements Serializable, Msg<NetAddress, NetHeader> {
 

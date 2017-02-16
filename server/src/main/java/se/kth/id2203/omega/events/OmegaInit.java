@@ -5,6 +5,9 @@ import se.sics.kompics.KompicsEvent;
 
 import java.util.Set;
 
+/**
+ * Message sent to Omega containing set of nodes to monitor for leader election
+ */
 public class OmegaInit implements KompicsEvent {
 	
 	public final Set<NetAddress> nodes;

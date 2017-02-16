@@ -10,7 +10,7 @@ import se.kth.id2203.epfd.events.Suspect;
 import se.kth.id2203.epfd.ports.EPFDPort;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.omega.events.OmegaInit;
-import se.kth.id2203.omega.events.OmegaTimeout;
+import se.kth.id2203.omega.timeout.OmegaTimeout;
 import se.kth.id2203.omega.events.Trust;
 import se.kth.id2203.omega.ports.OmegaPort;
 import se.sics.kompics.*;
@@ -22,22 +22,27 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * EventualLeaderDetector, gives eventual accuracy and eventual agreement
+ *
+ * @author Konstantin Sozinov
+ */
 public class Omega extends ComponentDefinition {
 
-    final static Logger LOG = LoggerFactory.getLogger(Omega.class);
-
-    //private Component epfd = null;
-
-    private NetAddress leader;
-    private Set<NetAddress> all = new HashSet<>();
-    private Set<NetAddress> suspected = new HashSet<>();
-
+    /* Ports */
     protected final Negative<OmegaPort> omegaPort = provides(OmegaPort.class);
     protected final Positive<EPFDPort> epfdPort = requires(EPFDPort.class);
     protected final Positive<Timer> timer = requires(Timer.class);
-
+    /* Fields */
+    final static Logger LOG = LoggerFactory.getLogger(Omega.class);
+    private NetAddress leader;
+    private Set<NetAddress> all = new HashSet<>();
+    private Set<NetAddress> suspected = new HashSet<>();
     private UUID timeoutId;
 
+    /**
+     * Setup timer
+     */
     protected final Handler<Start> startHandler = new Handler<Start>() {
         @Override
         public void handle(Start e) {
@@ -51,6 +56,9 @@ public class Omega extends ComponentDefinition {
         }
     };
 
+    /**
+     * Initialize leader election for a set of processes
+     */
     protected final Handler<OmegaInit> omegaInitHandler = new Handler<OmegaInit>() {
         @Override
         public void handle(OmegaInit omegaInit) {
@@ -62,6 +70,9 @@ public class Omega extends ComponentDefinition {
         }
     };
 
+    /**
+     * Update leader based on suspicion from EPFD
+     */
     protected final Handler<OmegaTimeout> timeoutHandler = new Handler<OmegaTimeout>() {
         @Override
         public void handle(OmegaTimeout event) {
@@ -74,6 +85,9 @@ public class Omega extends ComponentDefinition {
         }
     };
 
+    /**
+     * EPFD suspected some process
+     */
     protected final Handler<Suspect> suspectHandler = new Handler<Suspect>() {
         @Override
         public void handle(Suspect event) {
@@ -81,6 +95,9 @@ public class Omega extends ComponentDefinition {
         }
     };
 
+    /**
+     * EPFD restored suspicion of some process
+     */
     protected final Handler<Restore> restoreHandler = new Handler<Restore>() {
         @Override
         public void handle(Restore event) {
@@ -88,6 +105,12 @@ public class Omega extends ComponentDefinition {
         }
     };
 
+    /**
+     * Function to select leader from set of processes
+     *
+     * @param nodes processes
+     * @return leader
+     */
     private NetAddress maxRank(Set<NetAddress> nodes) {
         if (nodes.size() < 1)
             return null;

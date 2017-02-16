@@ -25,10 +25,11 @@ package se.kth.id2203.networking;
 
 import com.google.common.collect.ComparisonChain;
 import com.google.common.primitives.UnsignedBytes;
+import se.sics.kompics.network.Address;
+
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import se.sics.kompics.network.Address;
 
 public class NetAddress implements Serializable, Address, Comparable<NetAddress> {
 
@@ -37,6 +38,10 @@ public class NetAddress implements Serializable, Address, Comparable<NetAddress>
 
     public NetAddress(InetAddress addr, int portI) {
         this.isa = new InetSocketAddress(addr, portI);
+    }
+
+    public NetAddress(NetAddress netAddress) {
+        this.isa = netAddress.isa;
     }
 
     @Override
@@ -80,6 +85,7 @@ public class NetAddress implements Serializable, Address, Comparable<NetAddress>
             return false;
         }
         final NetAddress that = ((NetAddress) obj);
+        //return this.sameHostAs(that);
         return this.compareTo(that) == 0;
     }
 

@@ -28,13 +28,12 @@ import se.sics.kompics.timer.Timer;
  * Parent component initializes subcomponents and connects them. Subcomponents are VSOverlayManager, KVService and
  * BootstrapClient or BootstrapServer
  */
-public class ParentComponent
-        extends ComponentDefinition {
+public class ParentComponent extends ComponentDefinition {
 
-    //******* Ports ******
+    /* Ports */
     protected final Positive<Network> net = requires(Network.class);
     protected final Positive<Timer> timer = requires(Timer.class);
-    //******* Children ******
+    /* Children */
     protected final Component kv = create(KVService.class, Init.NONE);
     protected final Component overlay = create(VSOverlayManager.class, new OverlayInit(kv));
     protected final Component boot;
@@ -76,7 +75,11 @@ public class ParentComponent
         connect(net, beb.required(Network.class), Channel.TWO_WAY);
         //GMS
         connect(gms.provided(GMSPort.class), vSync.required(GMSPort.class), Channel.TWO_WAY);
+        connect(timer, gms.required(Timer.class), Channel.TWO_WAY);
+        connect(net, gms.required(Network.class), Channel.TWO_WAY);
         //VSync
+        connect(timer, vSync.required(Timer.class), Channel.TWO_WAY);
+        connect(net, vSync.required(Network.class), Channel.TWO_WAY);
     }
 
     @Override

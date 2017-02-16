@@ -1,4 +1,4 @@
-package se.kth.id2203.omega.events;
+package se.kth.id2203.omega.timeout;
 
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timeout;

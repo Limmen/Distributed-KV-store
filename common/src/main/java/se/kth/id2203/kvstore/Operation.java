@@ -39,10 +39,12 @@ public class Operation implements KompicsEvent, Serializable {
 
     public final String key;
     public final UUID id;
+    public final String value;
     public final OperationCode operationCode;
 
-    public Operation(String key, OperationCode operationCode) {
+    public Operation(String key, String value, OperationCode operationCode) {
         this.key = key;
+        this.value = value;
         this.operationCode = operationCode;
         this.id = UUID.randomUUID();
     }
@@ -52,6 +54,7 @@ public class Operation implements KompicsEvent, Serializable {
         return MoreObjects.toStringHelper(this)
                 .add("id", id)
                 .add("key", key)
+                .add("value", value)
                 .add("Op",operationCode)
                 .toString();
     }

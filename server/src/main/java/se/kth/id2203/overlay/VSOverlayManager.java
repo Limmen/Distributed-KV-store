@@ -57,18 +57,17 @@ import java.util.Set;
  */
 public class VSOverlayManager extends ComponentDefinition {
 
-    final static Logger LOG = LoggerFactory.getLogger(VSOverlayManager.class);
-    //******* Ports ******
+    /* Ports */
     protected final Negative<Routing> route = provides(Routing.class);
     protected final Positive<Bootstrapping> boot = requires(Bootstrapping.class);
     protected final Positive<Network> net = requires(Network.class);
     protected final Positive<Timer> timer = requires(Timer.class);
     protected final Positive<KVPort> kvPort = requires(KVPort.class);
-    //******* Fields ******
+    /* Fields */
+    final static Logger LOG = LoggerFactory.getLogger(VSOverlayManager.class);
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private LookupTable lut = null;
     private Component kvService;
-    //******* Handlers ******
 
     public VSOverlayManager(OverlayInit overlayInit) {
         this.kvService = overlayInit.kvService;
@@ -108,7 +107,7 @@ public class VSOverlayManager extends ComponentDefinition {
 
     /**
      * Some operation for the key-value store to be routed. Retrieve the set of servers for the partition and route
-     * message to a randomly selected server
+     * payload to a randomly selected server
      */
     protected final ClassMatchedHandler<RouteMsg, Message> routeHandler = new ClassMatchedHandler<RouteMsg, Message>() {
 
@@ -116,13 +115,13 @@ public class VSOverlayManager extends ComponentDefinition {
         public void handle(RouteMsg content, Message context) {
             Collection<NetAddress> partition = lut.lookup(content.key);
             NetAddress target = J6.randomElement(partition);
-            LOG.info("Forwarding message for key {} to {}", content.key, target);
+            LOG.info("Forwarding payload for key {} to {}", content.key, target);
             trigger(new Message(context.getSource(), target, content.msg), net);
         }
     };
 
     /**
-     * Locally routed message
+     * Locally routed payload
      */
     protected final Handler<RouteMsg> localRouteHandler = new Handler<RouteMsg>() {
 
@@ -130,7 +129,7 @@ public class VSOverlayManager extends ComponentDefinition {
         public void handle(RouteMsg event) {
             Collection<NetAddress> partition = lut.lookup(event.key);
             NetAddress target = J6.randomElement(partition);
-            LOG.info("Routing message for key {} to {}", event.key, target);
+            LOG.info("Routing payload for key {} to {}", event.key, target);
             trigger(new Message(self, target, event.msg), net);
         }
     };

@@ -3,6 +3,9 @@ package se.kth.id2203.epfd.events;
 import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.KompicsEvent;
 
+/**
+ * Restore suspicion of process
+ */
 public class Restore implements KompicsEvent {
 
 	public final NetAddress restored;
