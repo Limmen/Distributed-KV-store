@@ -59,10 +59,10 @@ public class LookupTable implements NodeAssignment {
         return partitions.get(partition);
     }
 
-    public int reverseLookup(NetAddress node){
-        for (int key: partitions.keySet()) {
+    public int reverseLookup(NetAddress node) {
+        for (int key : partitions.keySet()) {
             Collection<NetAddress> partition = partitions.get(key);
-            if(partition.contains(node))
+            if (partition.contains(node))
                 return key;
         }
         return -1;
@@ -86,20 +86,31 @@ public class LookupTable implements NodeAssignment {
         return sb.toString();
     }
 
-    static LookupTable generate(ImmutableSet<NetAddress> nodes, int replicationDegree, int keySpace) {
+    /**
+     * Genereates the intial lookuptable. A partition is of size replication-degree*2-1
+     *
+     * @param nodes             Nodes to assign to partitions
+     * @param replicationDegree replication-degree
+     * @param keySpace          range between each partition
+     * @return
+     */
+    static LookupTable generate(ImmutableSet<NetAddress> nodes, int replicationDegree, int keySpace) throws PartitionAssignmentException {
         LookupTable lut = new LookupTable();
         int i = 0;
         int partition = 0;
-        for(NetAddress node : nodes){
+        int partitionMaxSize = replicationDegree * 2 - 1;
+        for (NetAddress node : nodes) {
             lut.partitions.put(partition, node);
             i++;
-            if(i == replicationDegree){
+            if (i == partitionMaxSize) {
                 i = 0;
                 partition = partition + keySpace;
             }
         }
-        //lut.partitions.putAll(0, nodes);
-        return lut;
+        if (i < replicationDegree && i != 0)
+            throw new PartitionAssignmentException("Could'nt assign nodes to partition, every partition needs to have atleast enough nodes to fulfill replicationDegree");
+
+            return lut;
     }
 
 }

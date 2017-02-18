@@ -81,7 +81,13 @@ public class VSOverlayManager extends ComponentDefinition {
         @Override
         public void handle(GetInitialAssignments event) {
             LOG.info("Generating LookupTable...");
-            LookupTable lut = LookupTable.generate(event.nodes, event.replicationDegree, event.keySpace);
+            LookupTable lut = null;
+            try {
+                lut = LookupTable.generate(event.nodes, event.replicationDegree, event.keySpace);
+            } catch (PartitionAssignmentException e) {
+                e.printStackTrace();
+                Kompics.forceShutdown();
+            }
             LOG.debug("Generated assignments:\n{}", lut);
             trigger(new InitialAssignments(lut), boot);
         }

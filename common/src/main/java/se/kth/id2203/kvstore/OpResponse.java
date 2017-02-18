@@ -57,6 +57,7 @@ public class OpResponse implements KompicsEvent, Serializable {
         return MoreObjects.toStringHelper(this)
                 .add("id", id)
                 .add("status", status)
+                .add("value", value)
                 .toString();
     }
 

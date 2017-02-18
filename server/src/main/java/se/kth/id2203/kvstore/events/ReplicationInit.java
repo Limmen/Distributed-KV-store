@@ -5,6 +5,9 @@ import se.sics.kompics.KompicsEvent;
 
 import java.util.Set;
 
+/**
+ * Event sent to initialize KVService in a replicationgroup, sent by overlay after bootstrapping is completed
+ */
 public class ReplicationInit implements KompicsEvent {
 
 	public final Set<NetAddress> nodes;

@@ -7,6 +7,8 @@ import se.sics.kompics.KompicsEvent;
 import java.io.Serializable;
 
 /**
+ * RouteWrapper for routing within replication-groups. Sent by backups to primary.
+ *
  * @author Kim Hammar on 2017-02-16.
  */
 public class RouteOperation implements KompicsEvent, Serializable {

@@ -1,39 +1,20 @@
-/*
- * The MIT License
- *
- * Copyright 2017 Lars Kroll <lkroll@kth.se>.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-package se.kth.id2203.kvstore;
+package se.kth.id2203.simulation.scenario;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.kth.id2203.gms.events.View;
+import se.kth.id2203.kvstore.OpResponse;
+import se.kth.id2203.kvstore.Operation;
 import se.kth.id2203.kvstore.events.ReplicationInit;
 import se.kth.id2203.kvstore.events.RouteOperation;
 import se.kth.id2203.kvstore.ports.KVPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.overlay.ports.Routing;
+import se.kth.id2203.simulation.result.SimulationResultMap;
+import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.vsync.events.*;
 import se.kth.id2203.vsync.ports.VSyncPort;
 import se.sics.kompics.*;
@@ -42,13 +23,15 @@ import se.sics.kompics.network.Network;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * ServiceComponent that handles the actual operation-requests from clients and return results.
+ * ---- Scenario version that will put certain values into resultMap----
  *
- * @author Lars Kroll <lkroll@kth.se>
+ * @author Kim Hammar
  */
-public class KVService extends ComponentDefinition {
+public class LinScenarioKVService extends ComponentDefinition {
 
     /* Ports */
     protected final Positive<Network> net = requires(Network.class);
@@ -56,21 +39,31 @@ public class KVService extends ComponentDefinition {
     protected final Positive<VSyncPort> vSyncPort = requires(VSyncPort.class);
     protected final Negative<KVPort> kvPort = provides(KVPort.class);
     /* Fields */
-    private final static Logger LOG = LoggerFactory.getLogger(KVService.class);
+    private final static Logger LOG = LoggerFactory.getLogger(LinScenarioKVService.class);
     private final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private HashMap<Integer, String> keyValues = new HashMap<>();
     private long timestamp;
     private View replicationGroup;
     private boolean blocked;
     private Queue<RouteOperation> operationQueue;
+    private final SimulationResultMap res = SimulationResultSingleton.getInstance();
+
+    protected final Handler<Start> startHandler = new Handler<Start>() {
+        @Override
+        public void handle(Start start) {
+            keyValues.put("1".hashCode(), "first");
+        }
+    };
 
     /**
-     * Received Operation routed from overlay.
-     * Route it again within the replication-group to the leader.
+     *
      */
     protected final ClassMatchedHandler<Operation, Message> opHandler = new ClassMatchedHandler<Operation, Message>() {
         @Override
         public void handle(Operation content, Message context) {
+            Queue trace = res.get("trace", ConcurrentLinkedQueue.class);
+            trace.add(content);
+            //res.put("test-inv", content.toString());
             LOG.info("Got operation {}, routing it to leader..", content);
             RouteOperation routeOperation = new RouteOperation(content, context.getSource());
             if (!blocked) {
@@ -94,15 +87,14 @@ public class KVService extends ComponentDefinition {
                 if (!blocked) {
                     switch (routeOperation.operation.operationCode) {
                         case GET:
-                            String val = keyValues.get(routeOperation.operation.key.hashCode());
-                            if(val == null)
-                                val = "not found";
-                            trigger(new Message(self, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, keyValues.get(routeOperation.operation.key.hashCode()))), net);
+                            OpResponse opResponse = new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, keyValues.get(routeOperation.operation.key.hashCode()));
+                            trigger(new Message(self, routeOperation.client, opResponse), net);
                             break;
                         case PUT:
                             keyValues.put(routeOperation.operation.key.hashCode(), routeOperation.operation.value);
                             trigger(new VS_Broadcast(new StateUpdate(ImmutableMap.copyOf(keyValues),timestamp), replicationGroup.id), vSyncPort);
-                            trigger(new Message(self, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, "Write successful")), net);
+                            opResponse = new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, "Write successful");
+                            trigger(new Message(self, routeOperation.client, opResponse), net);
                             break;
                         default:
                             trigger(new Message(self, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.NOT_IMPLEMENTED)), net);
@@ -155,6 +147,7 @@ public class KVService extends ComponentDefinition {
                 keyValues.putAll(stateUpdate.keyValues);
             timestamp++;
             printStore();
+            res.put(self.getIp().getHostAddress(), keyValues);
         }
     };
 
@@ -185,6 +178,7 @@ public class KVService extends ComponentDefinition {
     {
         subscribe(routedOpHandler, net);
         subscribe(opHandler, net);
+        subscribe(startHandler, control);
         subscribe(viewHandler, vSyncPort);
         subscribe(blockHandler, vSyncPort);
         subscribe(stateUpdateHandler, vSyncPort);
