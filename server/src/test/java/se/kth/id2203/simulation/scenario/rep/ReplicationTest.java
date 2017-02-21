@@ -64,6 +64,7 @@ public class ReplicationTest {
         ArrayList<HashMap<Integer, String>> nodeStores = new ArrayList<>();
         for (int i = 1; i <= SERVERS; i++) {
             String ip = "192.168.0." + i;
+            HashMap test = res.get(ip, HashMap.class);
            nodeStores.add(res.get(ip, HashMap.class));
         }
         HashMap<Integer, String> reference = nodeStores.get(0);

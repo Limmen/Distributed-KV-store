@@ -1,9 +1,13 @@
 package se.kth.id2203.simulation.scenario.view;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +25,8 @@ import se.kth.id2203.kvstore.ports.KVPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.overlay.ports.Routing;
+import se.kth.id2203.simulation.result.SimulationResultMap;
+import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.vsync.events.Block;
 import se.kth.id2203.vsync.events.BlockOk;
 import se.kth.id2203.vsync.events.StateUpdate;
@@ -51,6 +57,7 @@ public class ViewScenarioKVService extends ComponentDefinition {
     private View replicationGroup;
     private boolean blocked;
     private Queue<RouteOperation> operationQueue;
+    private final SimulationResultMap res = SimulationResultSingleton.getInstance();
     
 
     /**
@@ -135,10 +142,23 @@ public class ViewScenarioKVService extends ComponentDefinition {
         @Override
         public void handle(View view) {
             LOG.debug("KVService recieved new view from VSyncService");
+            HashMap<String,Object> result = new HashMap<>();
+            result.put("members", convertFromNetAddr(view.members));
+            result.put("id", view.id);
+            result.put("leader", view.leader.getIp().getHostAddress());
+            res.put(self.getIp().getHostAddress(),result);
             blocked = false;
             replicationGroup = view;
         }
     };
+    
+    private Set<String> convertFromNetAddr(Set<NetAddress> addresses){
+    	Set<String> result = new HashSet<>();
+    	for (NetAddress addr : addresses) {
+			result.add(addr.getIp().getHostAddress());
+		}
+    	return result;
+    }
 
     /**
      * Joined new replication-group

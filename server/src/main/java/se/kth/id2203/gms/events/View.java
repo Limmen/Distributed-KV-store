@@ -13,7 +13,9 @@ import java.util.Set;
  */
 public class View implements KompicsEvent, Serializable {
 
-    public final Set<NetAddress> members;
+    
+
+	public final Set<NetAddress> members;
     public final long id;
     public final NetAddress leader;
 
@@ -41,4 +43,8 @@ public class View implements KompicsEvent, Serializable {
         return true;
     }
 
+    @Override
+	public String toString() {
+		return "View [members=" + members + ", id=" + id + ", leader=" + leader + "]";
+	}
 }

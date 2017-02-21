@@ -39,6 +39,7 @@ import se.sics.kompics.simulator.adaptor.distributions.ConstantDistribution;
 import se.sics.kompics.simulator.adaptor.distributions.extra.BasicIntSequentialDistribution;
 import se.sics.kompics.simulator.events.system.KillNodeEvent;
 import se.sics.kompics.simulator.events.system.StartNodeEvent;
+import se.kth.id2203.simulation.scenario.view.*;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -134,6 +135,58 @@ public abstract class ScenarioGen {
                 @Override
                 public Class getComponentDefinition() {
                     return LinScenarioParentComponent.class;
+                }
+
+                @Override
+                public String toString() {
+                    return "StartNode<" + selfAdr.toString() + ">";
+                }
+
+                @Override
+                public Init getComponentInit() {
+                    return Init.NONE;
+                }
+
+                @Override
+                public Map<String, Object> initConfigUpdate() {
+                    HashMap<String, Object> config = new HashMap<>();
+                    config.put("id2203.project.address", selfAdr);
+                    config.put("id2203.project.replicationDegree", replicationDegree);
+                    config.put("id2203.project.bootThreshold", bootThreshold);
+                    if (self != 1) { // don't put this at the bootstrap server, or it will act as a bootstrap client
+                        config.put("id2203.project.bootstrap-address", bsAdr);
+                    }
+                    return config;
+                }
+            };
+        }
+    };
+    
+    private static final Operation3 startScenarioView = new Operation3<StartNodeEvent, Integer, Integer, Integer>() {
+
+        @Override
+        public StartNodeEvent generate(final Integer self, final Integer replicationDegree, final Integer bootThreshold) {
+            return new StartNodeEvent() {
+                final NetAddress selfAdr;
+                final NetAddress bsAdr;
+
+                {
+                    try {
+                        selfAdr = new NetAddress(InetAddress.getByName("192.168.0." + self), 45678);
+                        bsAdr = new NetAddress(InetAddress.getByName("192.168.0.1"), 45678);
+                    } catch (UnknownHostException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
+                public Address getNodeAddress() {
+                    return selfAdr;
+                }
+
+                @Override
+                public Class getComponentDefinition() {
+                    return ViewScenarioParentComponent.class;
                 }
 
                 @Override
@@ -437,6 +490,30 @@ public abstract class ScenarioGen {
                 killNode.startAfterStartOf(60000, startCluster);
                 startClients.startAfterTerminationOf(70000, startCluster);
                 terminateAfterTerminationOf(100000, startClients);
+            }
+        };
+    }
+    
+    
+    
+    public static SimulationScenario viewTest(final int servers, final int replicationDegree, final int crashes) {
+        return new SimulationScenario() {
+            {
+                SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(servers, startScenarioView, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
+                    }
+                };
+                SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(0));
+                        raise(crashes, killNodeOp, new BasicIntSequentialDistribution((1)));
+                    }
+                };
+                startCluster.start();
+                killNode.startAfterStartOf(60000, startCluster);
+                terminateAfterTerminationOf(100000, killNode);
             }
         };
     }
