@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.simulation;
+package se.kth.id2203.simulation.scenario.ops;
 
 import junit.framework.Assert;
 import se.kth.id2203.simulation.result.SimulationResultMap;
@@ -30,45 +30,34 @@ import se.kth.id2203.simulation.scenario.ScenarioGen;
 import se.sics.kompics.simulator.SimulationScenario;
 import se.sics.kompics.simulator.run.LauncherComp;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
 /**
  *
- * Replication test
+ * Tests operations of the key-value store.
+ * Currently tests only PUT/GET, todo: CAS operation.
  *
- * Starts a cluster of servers and a set of clients and runs a simulation where clients make requests to the cluster.
- * Then verify that every node in the same replication-group has the same state afterwards (i.e replication-degree is satisfied).
+ * Starts a cluster of servers and 1 test client and then runs a simulation where the client will issue a set of PUT
+ * requests and then after all those requests completed it will issue corresponding get requests. Responses are put in
+ * result-map and then verified.
  *
  * @author Kim Hammar
  */
-public class ReplicationTest {
-
+public class OpsTest {
+    
     private static final int NUM_MESSAGES = 10;
-    private static final int SERVERS = 5;
-    private static final int CLIENTS = 3;
-    private static final int REPLICATION_DEGREE = 3;
-    private static final int CRASHES = 2;
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
     public static void main(String[] args) {
-
+        
         long seed = 123;
         SimulationScenario.setSeed(seed);
-        SimulationScenario simpleBootScenario = ScenarioGen.linearizeTest(SERVERS, CLIENTS, REPLICATION_DEGREE, CRASHES);
+        SimulationScenario simpleBootScenario = ScenarioGen.simpleOps(3);
         res.put("messages", NUM_MESSAGES);
-        res.put("trace", new ConcurrentLinkedQueue<>());
         simpleBootScenario.simulate(LauncherComp.class);
-
-        ArrayList<HashMap<Integer, String>> nodeStores = new ArrayList<>();
-        for (int i = 1; i <= SERVERS; i++) {
-            String ip = "192.168.0." + i;
-           nodeStores.add(res.get(ip, HashMap.class));
+        for (int i = 0; i < NUM_MESSAGES/2; i++) {
+            Assert.assertEquals("OK - Write successful", res.get("PUT-test"+i, String.class));
         }
-        HashMap<Integer, String> reference = nodeStores.get(0);
-        for (HashMap<Integer, String> nodeStore: nodeStores) {
-            Assert.assertTrue(reference.equals(nodeStore));
+        for (int i = 0; i < NUM_MESSAGES/2; i++) {
+            Assert.assertEquals("OK - " + i, res.get("GET-test"+i, String.class));
         }
     }
 

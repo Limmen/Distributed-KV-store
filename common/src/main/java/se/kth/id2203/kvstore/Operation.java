@@ -40,11 +40,13 @@ public class Operation implements KompicsEvent, Serializable {
     public final String key;
     public final UUID id;
     public final String value;
+    public final String referenceValue;
     public final OperationCode operationCode;
 
-    public Operation(String key, String value, OperationCode operationCode) {
+    public Operation(String key, String value,String referenceValue, OperationCode operationCode) {
         this.key = key;
         this.value = value;
+        this.referenceValue = referenceValue;
         this.operationCode = operationCode;
         this.id = UUID.randomUUID();
     }
@@ -56,10 +58,11 @@ public class Operation implements KompicsEvent, Serializable {
                 .add("key", key)
                 .add("value", value)
                 .add("Op",operationCode)
+                .add("referenceValue", referenceValue)
                 .toString();
     }
 
     public static enum OperationCode {
-        GET, PUT
+        GET, PUT, CAS
     }
 }

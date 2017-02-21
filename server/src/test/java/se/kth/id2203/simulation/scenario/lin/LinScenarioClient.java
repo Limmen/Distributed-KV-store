@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.simulation.scenario;
+package se.kth.id2203.simulation.scenario.lin;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,10 +65,10 @@ public class LinScenarioClient extends ComponentDefinition {
             int half = messages / 2;
             ArrayList<Operation> operations = new ArrayList<>();
             for (int i = 0; i < half; i++) {
-                operations.add(new Operation(Integer.toString(i), Integer.toString(random.nextInt(100)), Operation.OperationCode.PUT));
+                operations.add(new Operation(Integer.toString(i), Integer.toString(random.nextInt(100)),"" ,Operation.OperationCode.PUT));
             }
             for (int i = 0; i < half; i++) {
-                operations.add(new Operation(Integer.toString(i), "", Operation.OperationCode.GET));
+                operations.add(new Operation(Integer.toString(i), "", "",Operation.OperationCode.GET));
             }
             Collections.shuffle(operations);
             for (Operation op : operations) {

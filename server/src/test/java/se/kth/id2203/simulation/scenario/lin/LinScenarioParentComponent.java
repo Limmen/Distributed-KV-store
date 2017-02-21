@@ -1,4 +1,4 @@
-package se.kth.id2203.simulation.scenario;
+package se.kth.id2203.simulation.scenario.lin;
 
 import com.google.common.base.Optional;
 import se.kth.id2203.bootstrapping.BootstrapClient;

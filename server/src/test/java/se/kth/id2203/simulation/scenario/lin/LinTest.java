@@ -21,44 +21,52 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.simulation;
+package se.kth.id2203.simulation.scenario.lin;
 
-import junit.framework.Assert;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.simulation.scenario.ScenarioGen;
 import se.sics.kompics.simulator.SimulationScenario;
 import se.sics.kompics.simulator.run.LauncherComp;
 
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 /**
+ * Test linearizable operation semantics of the KV-Store by creating a random execution and asserting properties
+ * on the trace of events.
  *
- * Tests operations of the key-value store.
- * Currently tests only PUT/GET, todo: CAS operation.
+ *  Starts up a cluster of servers and clients and runs a simulation where clients issues requests to the cluster.
+ * The servers will log every operation-invocation event as well as every operation-response events.
  *
- * Starts a cluster of servers and 1 test client and then runs a simulation where the client will issue a set of PUT
- * requests and then after all those requests completed it will issue corresponding get requests. Responses are put in
- * result-map and then verified.
+ * After the simulation linearizable properties are verified on the trace of events.
+ *
+ * TODO: Design the assertions according to the definition of linearizability.
  *
  * @author Kim Hammar
  */
-public class OpsTest {
+public class LinTest {
     
     private static final int NUM_MESSAGES = 10;
+    private static final int SERVERS = 3;
+    private static final int CLIENTS = 3;
+    private static final int REPLICATION_DEGREE = 3;
+    private static final int CRASHES = 2;
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
     public static void main(String[] args) {
         
         long seed = 123;
         SimulationScenario.setSeed(seed);
-        SimulationScenario simpleBootScenario = ScenarioGen.simpleOps(3);
+        SimulationScenario simpleBootScenario = ScenarioGen.linearizeTest(SERVERS, CLIENTS, REPLICATION_DEGREE, CRASHES);
         res.put("messages", NUM_MESSAGES);
+        res.put("trace", new ConcurrentLinkedQueue<>());
         simpleBootScenario.simulate(LauncherComp.class);
-        for (int i = 0; i < NUM_MESSAGES/2; i++) {
-            Assert.assertEquals("OK - Write successful", res.get("PUT-test"+i, String.class));
+        System.out.println("-------------------------------------------------------");
+        System.out.println("Trace of the execution (sequence of observable events):");
+        for(Object object : res.get("trace", ConcurrentLinkedQueue.class)){
+            System.out.println(object.toString());
         }
-        for (int i = 0; i < NUM_MESSAGES/2; i++) {
-            Assert.assertEquals("OK - " + i, res.get("GET-test"+i, String.class));
-        }
+        System.out.println("-------------------------------------------------------");
     }
 
 }

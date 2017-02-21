@@ -46,7 +46,8 @@ public class VSyncService extends ComponentDefinition {
     private Queue<View> pendingViews = new LinkedList<>();
     private Set<NetAddress> flushes = new HashSet<>();
     private UUID timeoutId;
-    private Set<UpdateAcc> accs = new HashSet<>();
+    private Set<NetAddress> accs = new HashSet<>();
+    private Queue<StateUpdate> pendingUpdates;
     private StateUpdate pendingUpdate;
 
     /**
@@ -56,6 +57,7 @@ public class VSyncService extends ComponentDefinition {
         @Override
         public void handle(Start e) {
             long timeout = 4000;
+            pendingUpdates = new LinkedList<>();
             SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(timeout, timeout);
             spt.setTimeoutEvent(new VSyncTimeout(spt));
             trigger(spt, timer);
@@ -111,17 +113,23 @@ public class VSyncService extends ComponentDefinition {
                     e.printStackTrace();
                 }
             }
-            if (currentView.leader.sameHostAs(self) && pendingUpdate != null) {
+            if(pendingUpdates.size() > 0 && pendingUpdate == null){
+            	pendingUpdate = pendingUpdates.poll();
+            	accs = new HashSet<>();
+            }
+            if (currentView != null && currentView.leader.sameHostAs(self) && pendingUpdate != null) {
                 Set<NetAddress> notAcked = new HashSet<>();
                 for (NetAddress member : currentView.members) {
                     if (!accs.contains(member))
                         notAcked.add(member);
                 }
                 if (notAcked.size() > 0) {
-                    trigger(new BEB_Broadcast(pendingUpdate, notAcked), broadcastPort);
+                	LOG.warn("Resending update to backups waiting for {} nodes ", notAcked.size());
+                    trigger(new BEB_Broadcast(new VS_Deliver(pendingUpdate, self, viewId), notAcked), broadcastPort);
                 } else {
+                    trigger(new VS_Deliver(new WriteComplete(pendingUpdate.id), self, viewId), vSyncPort);
+                    latestUpdate = pendingUpdate;
                     pendingUpdate = null;
-                    trigger(new VS_Deliver(new WriteComplete(id), self, viewId), vSyncPort);
                 }
             }
         }
@@ -158,7 +166,7 @@ public class VSyncService extends ComponentDefinition {
             if (currentView.leader.sameHostAs(self)) {
                 LOG.debug("VSyncService leader received request, sending broadcast");
                 VS_Deliver vs_deliver = new VS_Deliver(vs_broadcast.payload, self, viewId);
-                latestUpdate = vs_broadcast.payload;
+                pendingUpdates.add(vs_broadcast.payload);
                 trigger(new BEB_Broadcast(vs_deliver, currentView.members), broadcastPort);
             } else {
                 LOG.debug("VSyncService member received request, forwarding to leader");
@@ -176,10 +184,22 @@ public class VSyncService extends ComponentDefinition {
             if (vs_deliver.viewId == viewId && vs_deliver.source.sameHostAs(currentView.leader)) {
                 LOG.debug("Received StateUpdate from leader in view, delivering to application");
                 latestUpdate = (StateUpdate) vs_deliver.payload;
+                UpdateAcc acc = new UpdateAcc(latestUpdate.id);
+                LOG.warn("Sending acc to {} ", beb_deliver.source);
+                trigger(new Message(self,beb_deliver.source,acc),net);
                 trigger(vs_deliver, vSyncPort);
             }
         }
     };
+    
+    protected final ClassMatchedHandler<UpdateAcc,Message > accHandler = new ClassMatchedHandler<UpdateAcc, Message>() {
+		
+		@Override
+		public void handle(UpdateAcc content, Message context) {
+			LOG.warn("Received acc from {} ", context.getSource());
+			accs.add(context.getSource());
+		}
+	};
 
     /**
      * Received view from GMS, if we are leader we will try to install it, otherwise wait for other leader to try to
@@ -261,6 +281,7 @@ public class VSyncService extends ComponentDefinition {
         subscribe(flushReqHandler, broadcastPort);
         subscribe(deliverHandler, broadcastPort);
         subscribe(viewHandler, gmsPort);
+        subscribe(accHandler, net);
         subscribe(blockOkHandler, vSyncPort);
         subscribe(broadcastHandler, vSyncPort);
         subscribe(vSyncInitHandler, vSyncPort);

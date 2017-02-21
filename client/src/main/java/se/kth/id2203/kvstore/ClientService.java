@@ -156,8 +156,8 @@ public class ClientService extends ComponentDefinition {
      * @param key
      * @return
      */
-    Future<OpResponse> op(String key, String value, Operation.OperationCode operationCode) {
-        Operation op = new Operation(key, value, operationCode);
+    Future<OpResponse> op(String key, String value, String referenceValue, Operation.OperationCode operationCode) {
+        Operation op = new Operation(key, value, referenceValue,operationCode);
         OpWithFuture owf = new OpWithFuture(op);
         trigger(owf, onSelf);
         return owf.f;

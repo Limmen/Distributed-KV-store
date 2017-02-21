@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.simulation.scenario;
+package se.kth.id2203.simulation.scenario.ops;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,7 +92,7 @@ public class SimpleOpsScenarioClient extends ComponentDefinition {
     };
 
     private void sendPut(int i) {
-        Operation op = new Operation("test" + i, Integer.toString(i), Operation.OperationCode.PUT);
+        Operation op = new Operation("test" + i, Integer.toString(i), "",Operation.OperationCode.PUT);
         RouteMsg rm = new RouteMsg(op.key, op); // don't know which partition is responsible, so ask the bootstrap server to forward it
         trigger(new Message(self, server, rm), net);
         pending.put(op.id, op);
@@ -101,7 +101,7 @@ public class SimpleOpsScenarioClient extends ComponentDefinition {
     }
 
     private void sendGet(int i) {
-        Operation op = new Operation("test" + i, "", Operation.OperationCode.GET);
+        Operation op = new Operation("test" + i, "", "",Operation.OperationCode.GET);
         RouteMsg rm = new RouteMsg(op.key, op); // don't know which partition is responsible, so ask the bootstrap server to forward it
         trigger(new Message(self, server, rm), net);
         pending.put(op.id, op);
