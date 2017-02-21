@@ -46,6 +46,8 @@ public class VSyncService extends ComponentDefinition {
     private Queue<View> pendingViews = new LinkedList<>();
     private Set<NetAddress> flushes = new HashSet<>();
     private UUID timeoutId;
+    private Set<UpdateAcc> accs = new HashSet<>();
+    private StateUpdate pendingUpdate;
 
     /**
      * Initialize timer
@@ -109,6 +111,19 @@ public class VSyncService extends ComponentDefinition {
                     e.printStackTrace();
                 }
             }
+            if (currentView.leader.sameHostAs(self) && pendingUpdate != null) {
+                Set<NetAddress> notAcked = new HashSet<>();
+                for (NetAddress member : currentView.members) {
+                    if (!accs.contains(member))
+                        notAcked.add(member);
+                }
+                if (notAcked.size() > 0) {
+                    trigger(new BEB_Broadcast(pendingUpdate, notAcked), broadcastPort);
+                } else {
+                    pendingUpdate = null;
+                    trigger(new VS_Deliver(new WriteComplete(id), self, viewId), vSyncPort);
+                }
+            }
         }
     };
 
@@ -160,7 +175,7 @@ public class VSyncService extends ComponentDefinition {
         public void handle(VS_Deliver vs_deliver, BEB_Deliver beb_deliver) {
             if (vs_deliver.viewId == viewId && vs_deliver.source.sameHostAs(currentView.leader)) {
                 LOG.debug("Received StateUpdate from leader in view, delivering to application");
-                latestUpdate = vs_deliver.payload;
+                latestUpdate = (StateUpdate) vs_deliver.payload;
                 trigger(vs_deliver, vSyncPort);
             }
         }

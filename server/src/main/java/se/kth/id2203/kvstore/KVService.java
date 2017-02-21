@@ -63,6 +63,7 @@ public class KVService extends ComponentDefinition {
     private View replicationGroup;
     private boolean blocked;
     private Queue<RouteOperation> operationQueue;
+    private RouteOperation pendingUpdate;
 
     /**
      * Received Operation routed from overlay.
@@ -90,19 +91,20 @@ public class KVService extends ComponentDefinition {
         @Override
         public void handle(RouteOperation routeOperation, Message message) {
             if (replicationGroup.leader.sameHostAs(self)) {
+                timestamp++;
                 LOG.debug("Leader received operation");
                 if (!blocked) {
                     switch (routeOperation.operation.operationCode) {
                         case GET:
                             String val = keyValues.get(routeOperation.operation.key.hashCode());
-                            if(val == null)
+                            if (val == null)
                                 val = "not found";
-                            trigger(new Message(self, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, keyValues.get(routeOperation.operation.key.hashCode()))), net);
+                            trigger(new Message(self, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, val)), net);
                             break;
                         case PUT:
                             keyValues.put(routeOperation.operation.key.hashCode(), routeOperation.operation.value);
-                            trigger(new VS_Broadcast(new StateUpdate(ImmutableMap.copyOf(keyValues),timestamp), replicationGroup.id), vSyncPort);
-                            trigger(new Message(self, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, "Write successful")), net);
+                            trigger(new VS_Broadcast(new StateUpdate(ImmutableMap.copyOf(keyValues), timestamp), replicationGroup.id), vSyncPort);
+                            pendingUpdate = routeOperation;
                             break;
                         default:
                             trigger(new Message(self, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.NOT_IMPLEMENTED)), net);
@@ -139,7 +141,7 @@ public class KVService extends ComponentDefinition {
             timestamp = 0;
             blocked = false;
             operationQueue = new LinkedList<>();
-            trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes), new StateUpdate(ImmutableMap.copyOf(keyValues), timestamp)), vSyncPort);
+            trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes), new StateUpdate(ImmutableMap.copyOf(keyValues), timestamp, id)), vSyncPort);
         }
     };
 
@@ -153,8 +155,17 @@ public class KVService extends ComponentDefinition {
             keyValues = new HashMap<>();
             if (stateUpdate != null)
                 keyValues.putAll(stateUpdate.keyValues);
-            timestamp++;
             printStore();
+        }
+    };
+
+    /**
+     * Write complete, respond to client
+     */
+    protected final ClassMatchedHandler<WriteComplete, VS_Deliver> writeCompleteHandler = new ClassMatchedHandler<WriteComplete, VS_Deliver>() {
+        @Override
+        public void handle(WriteComplete writeComplete, VS_Deliver vs_deliver) {
+            trigger(new Message(self, pendingUpdate.client, new OpResponse(pendingUpdate.operation.id, OpResponse.Code.OK, "Write successful")), net);
         }
     };
 
@@ -181,12 +192,12 @@ public class KVService extends ComponentDefinition {
 
     /**
      * Kompics "instance initializer", subscribe handlers to ports.
-     */
-    {
+     */ {
         subscribe(routedOpHandler, net);
         subscribe(opHandler, net);
         subscribe(viewHandler, vSyncPort);
         subscribe(blockHandler, vSyncPort);
+        subscribe(writeCompleteHandler, vSyncPort);
         subscribe(stateUpdateHandler, vSyncPort);
         subscribe(replicationInitHandler, kvPort);
     }

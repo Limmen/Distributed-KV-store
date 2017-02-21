@@ -49,13 +49,14 @@ public class ReplicationTest {
     private static final int SERVERS = 5;
     private static final int CLIENTS = 3;
     private static final int REPLICATION_DEGREE = 3;
+    private static final int CRASHES = 2;
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
     public static void main(String[] args) {
 
         long seed = 123;
         SimulationScenario.setSeed(seed);
-        SimulationScenario simpleBootScenario = ScenarioGen.linearizeTest(SERVERS, CLIENTS, REPLICATION_DEGREE);
+        SimulationScenario simpleBootScenario = ScenarioGen.linearizeTest(SERVERS, CLIENTS, REPLICATION_DEGREE, CRASHES);
         res.put("messages", NUM_MESSAGES);
         res.put("trace", new ConcurrentLinkedQueue<>());
         simpleBootScenario.simulate(LauncherComp.class);

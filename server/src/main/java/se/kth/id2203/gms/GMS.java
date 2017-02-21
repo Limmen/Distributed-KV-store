@@ -76,7 +76,7 @@ public class GMS extends ComponentDefinition {
         public void handle(GMSInit gmsInit) {
             LOG.debug("GMS Initialized");
             viewId = 0;
-            members = ImmutableSet.copyOf(gmsInit.nodes);
+            members = new HashSet<>(gmsInit.nodes);
             role = Role.WORKER;
             currentView = new View(ImmutableSet.copyOf(members), viewId, null);
             trigger(new OmegaInit(ImmutableSet.copyOf(gmsInit.nodes)), omegaPort);

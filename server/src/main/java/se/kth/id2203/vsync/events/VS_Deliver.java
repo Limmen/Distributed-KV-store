@@ -1,6 +1,7 @@
 package se.kth.id2203.vsync.events;
 
 import se.kth.id2203.networking.NetAddress;
+import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.PatternExtractor;
 
 import java.io.Serializable;
@@ -10,13 +11,13 @@ import java.io.Serializable;
  *
  * @author Kim Hammar on 2017-02-08.
  */
-public class VS_Deliver implements PatternExtractor<Class, StateUpdate>, Serializable {
+public class VS_Deliver implements PatternExtractor<Class, KompicsEvent>, Serializable {
 
-    public final StateUpdate payload;
+    public final KompicsEvent payload;
     public final NetAddress source;
     public final long viewId;
 
-    public VS_Deliver(StateUpdate payload, NetAddress source, long viewId) {
+    public VS_Deliver(KompicsEvent payload, NetAddress source, long viewId) {
         this.payload = payload;
         this.source = source;
         this.viewId = viewId;
@@ -28,7 +29,7 @@ public class VS_Deliver implements PatternExtractor<Class, StateUpdate>, Seriali
     }
 
     @Override
-    public StateUpdate extractValue() {
+    public KompicsEvent extractValue() {
         return payload;
     }
 }

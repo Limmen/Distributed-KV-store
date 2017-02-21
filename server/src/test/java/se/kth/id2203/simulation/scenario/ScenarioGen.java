@@ -408,7 +408,7 @@ public abstract class ScenarioGen {
      * @param servers number of servers
      * @return
      */
-    public static SimulationScenario linearizeTest(final int servers, final int clients, final int replicationDegree) {
+    public static SimulationScenario linearizeTest(final int servers, final int clients, final int replicationDegree, final int crashes) {
         return new SimulationScenario() {
             {
                 SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
@@ -424,8 +424,15 @@ public abstract class ScenarioGen {
                         raise(clients, startLinClientOp, new BasicIntSequentialDistribution(1));
                     }
                 };
+                SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(0));
+                        raise(crashes, killNodeOp, new BasicIntSequentialDistribution((1)));
+                    }
+                };
                 startCluster.start();
-                startClients.startAfterTerminationOf(60000, startCluster);
+                killNode.startAfterStartOf(60000, startCluster);
+                startClients.startAfterTerminationOf(70000, startCluster);
                 terminateAfterTerminationOf(100000, startClients);
             }
         };

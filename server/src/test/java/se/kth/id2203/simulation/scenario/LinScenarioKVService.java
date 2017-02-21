@@ -48,12 +48,6 @@ public class LinScenarioKVService extends ComponentDefinition {
     private Queue<RouteOperation> operationQueue;
     private final SimulationResultMap res = SimulationResultSingleton.getInstance();
 
-    protected final Handler<Start> startHandler = new Handler<Start>() {
-        @Override
-        public void handle(Start start) {
-            keyValues.put("1".hashCode(), "first");
-        }
-    };
 
     /**
      *
@@ -92,7 +86,7 @@ public class LinScenarioKVService extends ComponentDefinition {
                             break;
                         case PUT:
                             keyValues.put(routeOperation.operation.key.hashCode(), routeOperation.operation.value);
-                            trigger(new VS_Broadcast(new StateUpdate(ImmutableMap.copyOf(keyValues),timestamp), replicationGroup.id), vSyncPort);
+                            trigger(new VS_Broadcast(new StateUpdate(ImmutableMap.copyOf(keyValues),timestamp, client, operationId), replicationGroup.id), vSyncPort);
                             opResponse = new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, "Write successful");
                             trigger(new Message(self, routeOperation.client, opResponse), net);
                             break;
@@ -131,7 +125,7 @@ public class LinScenarioKVService extends ComponentDefinition {
             timestamp = 0;
             blocked = false;
             operationQueue = new LinkedList<>();
-            trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes), new StateUpdate(ImmutableMap.copyOf(keyValues), timestamp)), vSyncPort);
+            trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes), new StateUpdate(ImmutableMap.copyOf(keyValues), timestamp, client, operationId)), vSyncPort);
         }
     };
 
@@ -178,7 +172,6 @@ public class LinScenarioKVService extends ComponentDefinition {
     {
         subscribe(routedOpHandler, net);
         subscribe(opHandler, net);
-        subscribe(startHandler, control);
         subscribe(viewHandler, vSyncPort);
         subscribe(blockHandler, vSyncPort);
         subscribe(stateUpdateHandler, vSyncPort);
