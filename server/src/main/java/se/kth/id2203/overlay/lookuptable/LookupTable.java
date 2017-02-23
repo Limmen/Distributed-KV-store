@@ -21,15 +21,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.overlay;
+package se.kth.id2203.overlay.lookuptable;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.TreeMultimap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import se.kth.id2203.bootstrapping.NodeAssignment;
 import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 
-import java.util.Collection;
+import java.util.*;
 
 /**
  * LookupTable for nodes assigned to partitions.
@@ -39,10 +42,17 @@ import java.util.Collection;
 public class LookupTable implements NodeAssignment {
 
     private static final long serialVersionUID = -8766981433378303267L;
+    final static Logger LOG = LoggerFactory.getLogger(LookupTable.class);
+    private TreeMultimap<Integer, PID> partitions = TreeMultimap.create();
 
-    private final TreeMultimap<Integer, NetAddress> partitions = TreeMultimap.create();
+    public LookupTable(){
+    }
 
-    public Collection<NetAddress> lookup(String key) {
+    public LookupTable(LookupTable lookupTable){
+        this.partitions = TreeMultimap.create(lookupTable.partitions);
+    }
+
+    public Collection<PID> lookup(String key) {
         int keyHash = key.hashCode();
         Integer partition = partitions.keySet().floor(keyHash);
         if (partition == null) {
@@ -51,7 +61,7 @@ public class LookupTable implements NodeAssignment {
         return partitions.get(partition);
     }
 
-    public Collection<NetAddress> lookup(int keyHash) {
+    public Collection<PID> lookup(int keyHash) {
         Integer partition = partitions.keySet().floor(keyHash);
         if (partition == null) {
             partition = partitions.keySet().last();
@@ -59,17 +69,83 @@ public class LookupTable implements NodeAssignment {
         return partitions.get(partition);
     }
 
-    public int reverseLookup(NetAddress node) {
+    public int reverseLookup(PID node) {
         for (int key : partitions.keySet()) {
-            Collection<NetAddress> partition = partitions.get(key);
+            Collection<PID> partition = partitions.get(key);
             if (partition.contains(node))
                 return key;
         }
         return -1;
     }
 
-    public Collection<NetAddress> getNodes() {
+    public PID getPID(NetAddress address){
+        for (int key : partitions.keySet()) {
+            Collection<PID> partition = partitions.get(key);
+            PID pid = PID.getPID(address, (Set) partition);
+            if(pid != null)
+                return pid;
+        }
+        return null;
+    }
+
+    public int getEdgeKey(){
+        return Collections.max(partitions.keySet());
+    }
+
+    public Collection<PID> getNodes() {
         return partitions.values();
+    }
+
+    public Set<PID> getNodesSet(){
+        Set<PID> nodes = new HashSet<>();
+        Iterator iterator = partitions.values().iterator();
+        while(iterator.hasNext()){
+         nodes.add((PID) iterator.next());
+        }
+        return nodes;
+    }
+
+    public void putPartition(int  partition, Set<PID> nodes){
+        partitions.removeAll(partition);
+        partitions.putAll(partition, nodes);
+    }
+
+    public void putNode(int  partition, PID node){
+        partitions.put(partition, node);
+    }
+
+    public Collection getPartition(int key){
+        return partitions.get(key);
+    }
+
+    public void removePartition(int partition){
+        partitions.removeAll(partition);
+    }
+
+    public int freePartition(int replicationDegree){
+        for(int key : partitions.keySet()){
+            if(partitions.get(key).size() < replicationDegree*2 -1)
+                return key;
+        }
+        return partitions.keySet().descendingIterator().next();
+    }
+
+    public int succ(int key){
+        Integer ceiling = partitions.keySet().ceiling(key+1);
+        if(ceiling == null){
+            Integer first = partitions.keySet().ceiling(-1);
+            if(first == null){
+                return key;
+            } else{
+                return first;
+            }
+        }
+        else
+            return ceiling;
+    }
+
+    public long getNewPid(){
+        return Collections.max(getNodes()).pid + 1;
     }
 
     @Override
@@ -87,20 +163,22 @@ public class LookupTable implements NodeAssignment {
     }
 
     /**
-     * Genereates the intial lookuptable. A partition is of size replication-degree*2-1
+     * Generates the intial lookuptable. A partition is of size replication-degree*2-1
      *
      * @param nodes             Nodes to assign to partitions
      * @param replicationDegree replication-degree
      * @param keySpace          range between each partition
      * @return
      */
-    static LookupTable generate(ImmutableSet<NetAddress> nodes, int replicationDegree, int keySpace) throws PartitionAssignmentException {
+    public static LookupTable generate(ImmutableSet<NetAddress> nodes, int replicationDegree, int keySpace) throws PartitionAssignmentException {
         LookupTable lut = new LookupTable();
         int i = 0;
         int partition = 0;
         int partitionMaxSize = replicationDegree * 2 - 1;
+        long pid = 0;
         for (NetAddress node : nodes) {
-            lut.partitions.put(partition, node);
+            lut.partitions.put(partition, new PID(node, pid));
+            pid++;
             i++;
             if (i == partitionMaxSize) {
                 i = 0;

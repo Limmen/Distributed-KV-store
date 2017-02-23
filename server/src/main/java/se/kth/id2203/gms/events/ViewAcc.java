@@ -1,5 +1,6 @@
 package se.kth.id2203.gms.events;
 
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.KompicsEvent;
 
 import java.io.Serializable;
@@ -12,8 +13,10 @@ import java.io.Serializable;
 public class ViewAcc implements KompicsEvent, Serializable {
 
     public final long viewId;
+    public final PID source;
 
-    public ViewAcc(long viewId) {
+    public ViewAcc(long viewId, PID source) {
         this.viewId = viewId;
+        this.source = source;
     }
 }

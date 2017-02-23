@@ -1,6 +1,6 @@
 package se.kth.id2203.broadcast.beb.events;
 
-import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.PatternExtractor;
 
@@ -12,9 +12,9 @@ import java.io.Serializable;
 public class BEB_Deliver implements PatternExtractor<Class, KompicsEvent>, Serializable {
 
     public final KompicsEvent payload;
-    public final NetAddress source;
+    public final PID source;
 
-    public BEB_Deliver(KompicsEvent payload, NetAddress source) {
+    public BEB_Deliver(KompicsEvent payload, PID source) {
         this.payload = payload;
         this.source = source;
     }

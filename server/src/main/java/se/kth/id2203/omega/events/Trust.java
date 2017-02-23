@@ -1,6 +1,6 @@
 package se.kth.id2203.omega.events;
 
-import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.KompicsEvent;
 
 /**
@@ -8,9 +8,9 @@ import se.sics.kompics.KompicsEvent;
  */
 public class Trust implements KompicsEvent {
 	
-	public final NetAddress trusted;
+	public final PID trusted;
 
-	public Trust(NetAddress trusted) {
+	public Trust(PID trusted) {
 		this.trusted = trusted;
 	}
 }

@@ -57,10 +57,11 @@ public abstract class ScenarioGen {
      * Operation that takes 1 parameter which defines the pid of the server and starts a
      * server. The server with pid = 1 will be bootstrap-server
      */
-    private static final Operation1 startServerOp = new Operation1<StartNodeEvent, Integer>() {
+    private static final Operation3 startServerOp = new Operation3<StartNodeEvent, Integer, Integer, Integer>() {
 
         @Override
-        public StartNodeEvent generate(final Integer self) {
+        public StartNodeEvent generate(final Integer self, final Integer replicationDegree, final Integer bootThreshold) {
+
             return new StartNodeEvent() {
                 final NetAddress selfAdr;
                 final NetAddress bsAdr;
@@ -98,6 +99,8 @@ public abstract class ScenarioGen {
                 public Map<String, Object> initConfigUpdate() {
                     HashMap<String, Object> config = new HashMap<>();
                     config.put("id2203.project.address", selfAdr);
+                    config.put("id2203.project.replicationDegree", replicationDegree);
+                    config.put("id2203.project.bootThreshold", bootThreshold);
                     if (self != 1) { // don't put this at the bootstrap server, or it will act as a bootstrap client
                         config.put("id2203.project.bootstrap-address", bsAdr);
                     }
@@ -394,13 +397,13 @@ public abstract class ScenarioGen {
      * @param servers number of servers
      * @return
      */
-    public static SimulationScenario simpleOps(final int servers) {
+    public static SimulationScenario simpleOps(final int servers, final int replicationDegree) {
         return new SimulationScenario() {
             {
                 SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(servers, startServerOp, new BasicIntSequentialDistribution(1));
+                        raise(servers, startServerOp, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
                     }
                 };
 
@@ -417,45 +420,6 @@ public abstract class ScenarioGen {
         };
     }
 
-    /**
-     * Scenario for starting a observer and a cluster of servers and then killing them with the killNode operation.
-     *
-     * @param servers number of servers in the cluster
-     * @return
-     */
-    public static SimulationScenario killNodes(final int servers) {
-        SimulationScenario scen = new SimulationScenario() {
-            {
-                
-                SimulationScenario.StochasticProcess observer = new SimulationScenario.StochasticProcess() {
-                    {
-                        raise(1, startObserverOp);
-                    }
-                };
-
-                SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
-                    {
-                        eventInterArrivalTime(constant(1000));
-                        raise(servers, startServerOp, new BasicIntSequentialDistribution(1));
-                    }
-                };
-                
-                SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
-                    {
-                        eventInterArrivalTime(constant(0));
-                        raise(servers, killNodeOp, new BasicIntSequentialDistribution((1)));
-                    }  
-                };
-
-                observer.start();
-                startCluster.startAfterStartOf(1000, observer);
-                killNode.startAfterTerminationOf(1000, startCluster);
-                terminateAfterTerminationOf(1000*10000, startCluster);
-            }
-        };
-
-        return scen;
-    }
 
     /**
      * Start test cluster of servers and cluster of clients. Clients generate random sequence of invocation events
@@ -480,14 +444,15 @@ public abstract class ScenarioGen {
                         raise(clients, startLinClientOp, new BasicIntSequentialDistribution(1));
                     }
                 };
+                /*
                 SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(0));
                         raise(crashes, killNodeOp, new BasicIntSequentialDistribution((1)));
                     }
-                };
+                };*/
                 startCluster.start();
-                killNode.startAfterStartOf(60000, startCluster);
+                //killNode.startAfterStartOf(60000, startCluster);
                 startClients.startAfterTerminationOf(70000, startCluster);
                 terminateAfterTerminationOf(100000, startClients);
             }
@@ -513,7 +478,7 @@ public abstract class ScenarioGen {
                 };
                 startCluster.start();
                 killNode.startAfterStartOf(60000, startCluster);
-                terminateAfterTerminationOf(100000, killNode);
+                terminateAfterTerminationOf(60000, killNode);
             }
         };
     }

@@ -1,16 +1,17 @@
 package se.kth.id2203.simulation.scenario.view;
 
 
-import java.util.*;
-
 import org.junit.Assert;
-
-import se.kth.id2203.gms.events.View;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.simulation.scenario.ScenarioGen;
 import se.sics.kompics.simulator.SimulationScenario;
 import se.sics.kompics.simulator.run.LauncherComp;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
 
 /**
  * 
@@ -59,7 +60,7 @@ public class ViewTest {
         ViewWrapper wp = views.get(0);
         
         Assert.assertEquals(3, wp.members.size());
-        Assert.assertEquals(3, wp.id);
+        Assert.assertEquals(2, wp.id);
         
         
         for (ViewWrapper viewWrapper : views) {

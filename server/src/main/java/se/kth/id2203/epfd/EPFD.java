@@ -7,8 +7,9 @@ import org.slf4j.LoggerFactory;
 import se.kth.id2203.epfd.events.*;
 import se.kth.id2203.epfd.ports.EPFDPort;
 import se.kth.id2203.epfd.timeout.EPFDTimeout;
-import se.kth.id2203.networking.Message;
+import se.kth.id2203.networking.UDPMessage;
 import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
@@ -33,13 +34,14 @@ public class EPFD extends ComponentDefinition {
     /* Fields */
     final static Logger LOG = LoggerFactory.getLogger(EPFD.class);
     private final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
+    private PID selfPid;
     private final long delta = config().getValue("id2203.project.epfd.delta", Long.class);
     private UUID timeoutId;
     private long seqnum = 0;
     private long delay;
-    private Set<NetAddress> all = new HashSet<>();
-    private Set<NetAddress> alive = new HashSet<>();
-    private Set<NetAddress> suspected = new HashSet<>();
+    private Set<PID> all = new HashSet<>();
+    private Set<PID> alive = new HashSet<>();
+    private Set<PID> suspected = new HashSet<>();
 
     /**
      * Setup timer
@@ -48,6 +50,7 @@ public class EPFD extends ComponentDefinition {
         @Override
         public void handle(Start e) {
             delay = delta;
+            selfPid = new PID(self, 0);
             LOG.info("Starting epfd with delta {} and delay {}", delta, delay);
             SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(delay, delay);
             spt.setTimeoutEvent(new EPFDTimeout(spt));
@@ -63,11 +66,24 @@ public class EPFD extends ComponentDefinition {
         @Override
         public void handle(EPFDInit epfdInit) {
             LOG.debug("EPFD Initialized, monitoring {} processes", epfdInit.nodes.size());
-            alive = ImmutableSet.copyOf(epfdInit.nodes);
-            all = ImmutableSet.copyOf(epfdInit.nodes);
+            selfPid = epfdInit.pid;
+            alive = new HashSet<>(ImmutableSet.copyOf(epfdInit.nodes));
+            all = new HashSet<>(ImmutableSet.copyOf(epfdInit.nodes));
             suspected = new HashSet<>();
             seqnum = 0;
             delay = delta;
+        }
+    };
+
+    /**
+     * New nodes to monitor
+     */
+    protected final Handler<Reconfigure> reconfHandler = new Handler<Reconfigure>() {
+        @Override
+        public void handle(Reconfigure reconfigure) {
+            all.addAll(reconfigure.nodes);
+            alive.addAll(reconfigure.nodes);
+            LOG.debug("EPFD Reconfigured, monitoring {} nodes", all.size());
         }
     };
 
@@ -82,7 +98,7 @@ public class EPFD extends ComponentDefinition {
                 delay = delay + delta;
             }
             seqnum++;
-            for (NetAddress node : all) {
+            for (PID node : all) {
                 if (!alive.contains(node) && !suspected.contains(node)) {
                     LOG.error("The node {} was suspected...", node.toString());
                     suspected.add(node);
@@ -93,7 +109,7 @@ public class EPFD extends ComponentDefinition {
                     trigger(new Restore(node), epfd);
                 }
                 HBRequest req = new HBRequest(seqnum);
-                trigger(new Message(self, node, req), net);
+                trigger(new UDPMessage(selfPid.netAddress, node.netAddress, req), net);
             }
             alive = new HashSet<>();
         }
@@ -102,27 +118,28 @@ public class EPFD extends ComponentDefinition {
     /**
      * Someone sent heartbeat-request, respond to it.
      */
-    protected final ClassMatchedHandler<HBRequest, Message> requestHandler = new ClassMatchedHandler<HBRequest, Message>() {
+    protected final ClassMatchedHandler<HBRequest, UDPMessage> requestHandler = new ClassMatchedHandler<HBRequest, UDPMessage>() {
 
         @Override
-        public void handle(HBRequest event, Message msg) {
-            HBReply reply = new HBReply(event.seqnum, event.id);
-            trigger(new Message(self, msg.getSource(), reply), net);
+        public void handle(HBRequest event, UDPMessage msg) {
+            HBReply reply = new HBReply(event.seqnum, event.id, selfPid);
+            trigger(new UDPMessage(selfPid.netAddress, msg.getSource(), reply), net);
         }
     };
 
     /**
      * Someone responded to our heartbeat-request
      */
-    protected final ClassMatchedHandler<HBReply, Message> replyHandler = new ClassMatchedHandler<HBReply, Message>() {
+    protected final ClassMatchedHandler<HBReply, UDPMessage> replyHandler = new ClassMatchedHandler<HBReply, UDPMessage>() {
 
         @Override
-        public void handle(HBReply event, Message msg) {
-            if (event.seqnum == seqnum || suspected.contains(msg.getSource())) {
-                alive.add(msg.getSource());
+        public void handle(HBReply event, UDPMessage msg) {
+            if (event.seqnum == seqnum || suspected.contains(event.source)) {
+                alive.add(event.source);
             }
         }
     };
+
 
     {
         subscribe(startHandler, control);
@@ -130,6 +147,7 @@ public class EPFD extends ComponentDefinition {
         subscribe(requestHandler, net);
         subscribe(replyHandler, net);
         subscribe(initHandler, epfd);
+        subscribe(reconfHandler, epfd);
     }
 
 }

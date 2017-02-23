@@ -1,4 +1,4 @@
-package se.kth.id2203.overlay;
+package se.kth.id2203.overlay.lookuptable;
 
 /**
  * @author Kim Hammar on 2017-02-18.

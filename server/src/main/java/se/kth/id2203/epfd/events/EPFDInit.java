@@ -1,6 +1,6 @@
 package se.kth.id2203.epfd.events;
 
-import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.KompicsEvent;
 
 import java.util.Set;
@@ -10,10 +10,12 @@ import java.util.Set;
  */
 public class EPFDInit implements KompicsEvent {
 	
-	public final Set<NetAddress> nodes;
+	public final Set<PID> nodes;
+	public final PID pid;
 	
-	public EPFDInit(Set<NetAddress> nodes){
+	public EPFDInit(Set<PID> nodes, PID pid){
 		this.nodes = nodes;
+		this.pid = pid;
 	}
 
 }

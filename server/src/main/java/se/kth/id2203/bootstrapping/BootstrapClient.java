@@ -32,6 +32,7 @@ import se.kth.id2203.bootstrapping.events.Ready;
 import se.kth.id2203.bootstrapping.ports.Bootstrapping;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.service.events.JoinPending;
 import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.CancelPeriodicTimeout;
@@ -48,11 +49,6 @@ import java.util.UUID;
  */
 public class BootstrapClient extends ComponentDefinition {
 
-    public static enum State {
-
-        WAITING, STARTED;
-    }
-
     private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(BootstrapClient.class);
     //******* Ports ******
     final Negative<Bootstrapping> bootstrap = provides(Bootstrapping.class);
@@ -61,12 +57,9 @@ public class BootstrapClient extends ComponentDefinition {
     //******* Fields ******
     private final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private final NetAddress server = config().getValue("id2203.project.bootstrap-address", NetAddress.class);
-
     private State state = State.WAITING;
-
     private UUID timeoutId;
 
-    //******* Handlers ******
 
     /**
      * Startup, start timer for periodically sending check-in messages to bootstrap-server until asked to boot.
@@ -91,11 +84,9 @@ public class BootstrapClient extends ComponentDefinition {
         @Override
         public void handle(BSTimeout e) {
             if (state == State.WAITING) {
-                trigger(new Message(self, server, CheckIn.event), net);
+                trigger(new Message(self, server, new CheckIn(self)), net);
             } else if (state == State.STARTED) {
                 trigger(new Message(self, server, Ready.event), net);
-                //LOG.debug("bootstrap done, timeout triggered");
-                //tearDown();
                 suicide();
             }
         }
@@ -108,13 +99,24 @@ public class BootstrapClient extends ComponentDefinition {
 
         @Override
         public void handle(Boot content, Message context) {
-            if (state == State.WAITING) {
+            if (state == State.WAITING || state == State.PENDING) {
                 LOG.info("{} Booting up.", self);
                 trigger(new Booted(content.assignment), bootstrap);
                 //trigger(new CancelPeriodicTimeout(timeoutId), timer);
                 trigger(new Message(self, server, Ready.event), net);
                 state = State.STARTED;
             }
+        }
+    };
+
+    /**
+     * Join is pending, lacking enough members to create new partition, all existing partitions are full.
+     */
+    protected final ClassMatchedHandler<JoinPending, Message> pendingHandler = new ClassMatchedHandler<JoinPending, Message>() {
+
+        @Override
+        public void handle(JoinPending content, Message context) {
+            state = State.PENDING;
         }
     };
 
@@ -133,5 +135,12 @@ public class BootstrapClient extends ComponentDefinition {
         subscribe(startHandler, control);
         subscribe(timeoutHandler, timer);
         subscribe(bootHandler, net);
+        subscribe(pendingHandler, net);
+    }
+
+    public static enum State {
+
+        WAITING, PENDING, STARTED;
     }
 }
+

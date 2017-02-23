@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.overlay;
+package se.kth.id2203.overlay.manager;
 
 import com.larskroll.common.J6;
 import org.slf4j.Logger;
@@ -34,8 +34,13 @@ import se.kth.id2203.kvstore.events.ReplicationInit;
 import se.kth.id2203.kvstore.ports.KVPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
-import se.kth.id2203.overlay.events.OverlayInit;
-import se.kth.id2203.overlay.ports.Routing;
+import se.kth.id2203.overlay.*;
+import se.kth.id2203.overlay.lookuptable.LookupTable;
+import se.kth.id2203.overlay.lookuptable.PartitionAssignmentException;
+import se.kth.id2203.overlay.manager.ports.Routing;
+import se.kth.id2203.overlay.service.events.GlobalView;
+import se.kth.id2203.overlay.service.events.VSOverlayServiceInit;
+import se.kth.id2203.overlay.service.ports.OverlayServicePort;
 import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
@@ -59,6 +64,7 @@ public class VSOverlayManager extends ComponentDefinition {
 
     /* Ports */
     protected final Negative<Routing> route = provides(Routing.class);
+    protected final Positive<OverlayServicePort> overlayServicePort = requires(OverlayServicePort.class);
     protected final Positive<Bootstrapping> boot = requires(Bootstrapping.class);
     protected final Positive<Network> net = requires(Network.class);
     protected final Positive<Timer> timer = requires(Timer.class);
@@ -67,11 +73,7 @@ public class VSOverlayManager extends ComponentDefinition {
     final static Logger LOG = LoggerFactory.getLogger(VSOverlayManager.class);
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private LookupTable lut = null;
-    private Component kvService;
-
-    public VSOverlayManager(OverlayInit overlayInit) {
-        this.kvService = overlayInit.kvService;
-    }
+    private PID selfPID;
 
     /**
      * Bootstrap server requests to get initial assignment to partitions
@@ -102,9 +104,11 @@ public class VSOverlayManager extends ComponentDefinition {
             if (event.assignment instanceof LookupTable) {
                 LOG.info("Got NodeAssignment, overlay ready.");
                 lut = (LookupTable) event.assignment;
-                int key = lut.reverseLookup(self);
-                Collection<NetAddress> replicationGroup = lut.lookup(key);
-                trigger(new ReplicationInit((Set) replicationGroup), kvPort);
+                selfPID = lut.getPID(self);
+                int key = lut.reverseLookup(selfPID);
+                Collection<PID> replicationGroup = lut.lookup(key);
+                trigger(new ReplicationInit((Set) replicationGroup, selfPID ), kvPort);
+                trigger(new VSOverlayServiceInit(lut, selfPID), overlayServicePort);
             } else {
                 LOG.error("Got invalid NodeAssignment type. Expected: LookupTable; Got: {}", event.assignment.getClass());
             }
@@ -119,10 +123,10 @@ public class VSOverlayManager extends ComponentDefinition {
 
         @Override
         public void handle(RouteMsg content, Message context) {
-            Collection<NetAddress> partition = lut.lookup(content.key);
-            NetAddress target = J6.randomElement(partition);
+            Collection<PID> partition = lut.lookup(content.key);
+            PID target = J6.randomElement(partition);
             LOG.info("Forwarding payload for key {} to {}", content.key, target);
-            trigger(new Message(context.getSource(), target, content.msg), net);
+            trigger(new Message(context.getSource(), target.netAddress, content.msg), net);
         }
     };
 
@@ -133,10 +137,10 @@ public class VSOverlayManager extends ComponentDefinition {
 
         @Override
         public void handle(RouteMsg event) {
-            Collection<NetAddress> partition = lut.lookup(event.key);
-            NetAddress target = J6.randomElement(partition);
+            Collection<PID> partition = lut.lookup(event.key);
+            PID target = J6.randomElement(partition);
             LOG.info("Routing payload for key {} to {}", event.key, target);
-            trigger(new Message(self, target, event.msg), net);
+            trigger(new Message(self, target.netAddress, event.msg), net);
         }
     };
 
@@ -157,10 +161,21 @@ public class VSOverlayManager extends ComponentDefinition {
         }
     };
 
+    /**
+     * Globalview updated through gossop prot
+     */
+    protected final Handler<GlobalView> globalViewHandler = new Handler<GlobalView>() {
+        @Override
+        public void handle(GlobalView globalView) {
+            LOG.debug("Received new global view table from VSOverlayService");
+            lut = globalView.lookupTable;
+        }
+    };
 
     /**
      * Kompics "instance initializer", subscribe handlers to ports.
      */ {
+        subscribe(globalViewHandler, overlayServicePort);
         subscribe(initialAssignmentHandler, boot);
         subscribe(bootHandler, boot);
         subscribe(routeHandler, net);

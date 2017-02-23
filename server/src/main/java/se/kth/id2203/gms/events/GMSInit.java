@@ -1,6 +1,6 @@
 package se.kth.id2203.gms.events;
 
-import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.KompicsEvent;
 
 import java.util.Set;
@@ -10,10 +10,12 @@ import java.util.Set;
  */
 public class GMSInit implements KompicsEvent {
 
-	public final Set<NetAddress> nodes;
+	public final Set<PID> nodes;
+	public final PID self;
 
-	public GMSInit(Set<NetAddress> nodes){
+	public GMSInit(Set<PID> nodes, PID self){
 		this.nodes = nodes;
+		this.self = self;
 	}
 
 }

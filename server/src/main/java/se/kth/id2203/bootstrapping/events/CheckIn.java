@@ -23,6 +23,7 @@
  */
 package se.kth.id2203.bootstrapping.events;
 
+import se.kth.id2203.networking.NetAddress;
 import se.sics.kompics.KompicsEvent;
 
 import java.io.Serializable;
@@ -32,9 +33,10 @@ import java.io.Serializable;
  */
 public class CheckIn implements KompicsEvent, Serializable {
 
-    public final static CheckIn event = new CheckIn();
     private static final long serialVersionUID = -5044901955690784224L;
+    public final NetAddress netaddress;
 
-    private CheckIn() {
+    public CheckIn(NetAddress netaddress) {
+        this.netaddress = netaddress;
     }
 }

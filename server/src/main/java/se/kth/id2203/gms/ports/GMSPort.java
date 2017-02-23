@@ -1,6 +1,7 @@
 package se.kth.id2203.gms.ports;
 
 import se.kth.id2203.gms.events.GMSInit;
+import se.kth.id2203.gms.events.GMSJoin;
 import se.kth.id2203.gms.events.View;
 import se.sics.kompics.PortType;
 
@@ -11,6 +12,7 @@ public class GMSPort extends PortType {
 
     {
         request(GMSInit.class);
+        request(GMSJoin.class);
         indication(View.class);
     }
 }

@@ -7,10 +7,12 @@ import se.kth.id2203.broadcast.beb.events.BEB_Broadcast;
 import se.kth.id2203.broadcast.beb.events.BEB_Deliver;
 import se.kth.id2203.broadcast.beb.ports.BEBPort;
 import se.kth.id2203.gms.events.GMSInit;
+import se.kth.id2203.gms.events.GMSJoin;
 import se.kth.id2203.gms.events.View;
 import se.kth.id2203.gms.ports.GMSPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.kth.id2203.vsync.events.*;
 import se.kth.id2203.vsync.ports.VSyncPort;
 import se.kth.id2203.vsync.timeout.VSyncTimeout;
@@ -36,17 +38,18 @@ public class VSyncService extends ComponentDefinition {
     protected final Positive<GMSPort> gmsPort = requires(GMSPort.class);
     protected final Positive<BEBPort> broadcastPort = requires(BEBPort.class);
     /* Fields */
-    final static Logger LOG = LoggerFactory.getLogger(VSyncService.class);
-    final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
+    private final static Logger LOG = LoggerFactory.getLogger(VSyncService.class);
+    private final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
+    private PID selfPid;
     private View currentView;
     private long viewId = 0;
     private boolean flushing;
     private boolean blocked;
     private StateUpdate latestUpdate;
     private Queue<View> pendingViews = new LinkedList<>();
-    private Set<NetAddress> flushes = new HashSet<>();
+    private Set<PID> flushes = new HashSet<>();
     private UUID timeoutId;
-    private Set<NetAddress> accs = new HashSet<>();
+    private Set<PID> acks = new HashSet<>();
     private Queue<StateUpdate> pendingUpdates;
     private StateUpdate pendingUpdate;
 
@@ -56,7 +59,8 @@ public class VSyncService extends ComponentDefinition {
     protected final Handler<Start> startHandler = new Handler<Start>() {
         @Override
         public void handle(Start e) {
-            long timeout = 4000;
+            long timeout = config().getValue("id2203.project.vsync.timeout", Long.class);
+            selfPid = new PID(self, 0);
             pendingUpdates = new LinkedList<>();
             SchedulePeriodicTimeout spt = new SchedulePeriodicTimeout(timeout, timeout);
             spt.setTimeoutEvent(new VSyncTimeout(spt));
@@ -77,12 +81,15 @@ public class VSyncService extends ComponentDefinition {
             latestUpdate = vSyncInit.stateUpdate;
             pendingViews = new LinkedList<>();
             flushes = new HashSet<>();
-            trigger(new GMSInit(ImmutableSet.copyOf(vSyncInit.nodes)), gmsPort);
+            selfPid = vSyncInit.self;
+            trigger(new GMSInit(ImmutableSet.copyOf(vSyncInit.nodes), selfPid), gmsPort);
+            trigger(new Block(), vSyncPort);
         }
     };
 
     /**
-     * Timeout, if we are leader of new view and have pending view, attempt to install new view by collecting acks
+     * Timeout, if we are leader of new view and have pending view, attempt to install new view by collecting acks.
+     * Also if we are leader and we have pending updates, broadcast and collect ACK's before delivering to upper layer.
      */
     protected final Handler<VSyncTimeout> timeoutHandler = new Handler<VSyncTimeout>() {
         @Override
@@ -90,44 +97,45 @@ public class VSyncService extends ComponentDefinition {
             if (pendingViews.size() > 0 && !flushing) {
                 flushing = true;
                 LOG.debug("Pending view change.. triggering Block request to KV-layer");
-                trigger(new Block(), vSyncPort);
+                if (!blocked)
+                    trigger(new Block(), vSyncPort);
             }
-            if (pendingViews.size() > 0 && flushing && blocked && pendingViews.peek().leader.sameHostAs(self)) {
-                Set<NetAddress> notFlushed = new HashSet<>();
-                for (NetAddress member : pendingViews.peek().members) {
+            if (pendingViews.size() > 0 && flushing && blocked && pendingViews.peek().leader.equals(selfPid)) {
+                Set<PID> notFlushed = new HashSet<>();
+                for (PID member : pendingViews.peek().members) {
                     if (!flushes.contains(member))
                         notFlushed.add(member);
                 }
                 try {
                     if (notFlushed.size() > 0) {
-                        LOG.debug("Missing flushes before new view can be installed, re-sending flushrequest..");
-                        trigger(new BEB_Broadcast(new FlushReq(pendingViews.peek().id, viewId), notFlushed), broadcastPort);
+                        LOG.debug("Missing {} flushes before new view can be installed, re-sending flushrequest..", notFlushed.size());
+                        trigger(new BEB_Broadcast(new FlushReq(pendingViews.peek().id, viewId), notFlushed, selfPid), broadcastPort);
                     } else {
                         LOG.debug("Received all flushes, installing new view");
                         currentView = pendingViews.remove();
                         viewId = currentView.id;
-                        trigger(new BEB_Broadcast(new ViewInstall(currentView, latestUpdate), currentView.members), broadcastPort);
+                        trigger(new BEB_Broadcast(new ViewInstall(currentView, latestUpdate), currentView.members, selfPid), broadcastPort);
                     }
                 } catch (Exception e) {
                     LOG.debug("Exception!");
                     e.printStackTrace();
                 }
             }
-            if(pendingUpdates.size() > 0 && pendingUpdate == null){
-            	pendingUpdate = pendingUpdates.poll();
-            	accs = new HashSet<>();
+            if (pendingUpdates.size() > 0 && pendingUpdate == null) {
+                pendingUpdate = pendingUpdates.poll();
+                acks = new HashSet<>();
             }
-            if (currentView != null && currentView.leader.sameHostAs(self) && pendingUpdate != null) {
-                Set<NetAddress> notAcked = new HashSet<>();
-                for (NetAddress member : currentView.members) {
-                    if (!accs.contains(member))
+            if (currentView != null && currentView.leader.equals(selfPid) && pendingUpdate != null) {
+                Set<PID> notAcked = new HashSet<>();
+                for (PID member : currentView.members) {
+                    if (!acks.contains(member))
                         notAcked.add(member);
                 }
                 if (notAcked.size() > 0) {
-                	LOG.warn("Resending update to backups waiting for {} nodes ", notAcked.size());
-                    trigger(new BEB_Broadcast(new VS_Deliver(pendingUpdate, self, viewId), notAcked), broadcastPort);
+                    LOG.warn("Resending update to backups waiting for {} nodes ", notAcked.size());
+                    trigger(new BEB_Broadcast(new VS_Deliver(pendingUpdate, selfPid, viewId), notAcked, selfPid), broadcastPort);
                 } else {
-                    trigger(new VS_Deliver(new WriteComplete(pendingUpdate.id), self, viewId), vSyncPort);
+                    trigger(new VS_Deliver(new WriteComplete(pendingUpdate.id), selfPid, viewId), vSyncPort);
                     latestUpdate = pendingUpdate;
                     pendingUpdate = null;
                 }
@@ -163,14 +171,14 @@ public class VSyncService extends ComponentDefinition {
      */
     private void handleBroadcast(VS_Broadcast vs_broadcast) {
         if (vs_broadcast.viewId == viewId) {
-            if (currentView.leader.sameHostAs(self)) {
+            if (currentView.leader.equals(selfPid)) {
                 LOG.debug("VSyncService leader received request, sending broadcast");
-                VS_Deliver vs_deliver = new VS_Deliver(vs_broadcast.payload, self, viewId);
+                VS_Deliver vs_deliver = new VS_Deliver(vs_broadcast.payload, selfPid, viewId);
                 pendingUpdates.add(vs_broadcast.payload);
-                trigger(new BEB_Broadcast(vs_deliver, currentView.members), broadcastPort);
+                trigger(new BEB_Broadcast(vs_deliver, currentView.members, selfPid), broadcastPort);
             } else {
                 LOG.debug("VSyncService member received request, forwarding to leader");
-                trigger(new Message(self, currentView.leader, vs_broadcast), net);
+                trigger(new Message(selfPid.netAddress, currentView.leader.netAddress, vs_broadcast), net);
             }
         }
     }
@@ -181,25 +189,28 @@ public class VSyncService extends ComponentDefinition {
     protected final ClassMatchedHandler<VS_Deliver, BEB_Deliver> deliverHandler = new ClassMatchedHandler<VS_Deliver, BEB_Deliver>() {
         @Override
         public void handle(VS_Deliver vs_deliver, BEB_Deliver beb_deliver) {
-            if (vs_deliver.viewId == viewId && vs_deliver.source.sameHostAs(currentView.leader)) {
+            if (vs_deliver.viewId == viewId && vs_deliver.source.equals(currentView.leader)) {
                 LOG.debug("Received StateUpdate from leader in view, delivering to application");
                 latestUpdate = (StateUpdate) vs_deliver.payload;
-                UpdateAcc acc = new UpdateAcc(latestUpdate.id);
+                UpdateAcc acc = new UpdateAcc(latestUpdate.id, selfPid);
                 LOG.warn("Sending acc to {} ", beb_deliver.source);
-                trigger(new Message(self,beb_deliver.source,acc),net);
+                trigger(new Message(selfPid.netAddress, beb_deliver.source.netAddress, acc), net);
                 trigger(vs_deliver, vSyncPort);
             }
         }
     };
-    
-    protected final ClassMatchedHandler<UpdateAcc,Message > accHandler = new ClassMatchedHandler<UpdateAcc, Message>() {
-		
-		@Override
-		public void handle(UpdateAcc content, Message context) {
-			LOG.warn("Received acc from {} ", context.getSource());
-			accs.add(context.getSource());
-		}
-	};
+
+    /**
+     * Received ACK for update from backup in the view
+     */
+    protected final ClassMatchedHandler<UpdateAcc, Message> accHandler = new ClassMatchedHandler<UpdateAcc, Message>() {
+
+        @Override
+        public void handle(UpdateAcc content, Message context) {
+            LOG.warn("Received acc from {} ", context.getSource());
+            acks.add(content.source);
+        }
+    };
 
     /**
      * Received view from GMS, if we are leader we will try to install it, otherwise wait for other leader to try to
@@ -208,7 +219,7 @@ public class VSyncService extends ComponentDefinition {
     protected final Handler<View> viewHandler = new Handler<View>() {
         @Override
         public void handle(View view) {
-            if (view.leader.sameHostAs(self)) {
+            if (view.leader.equals(selfPid)) {
                 LOG.debug("Received view from GMS with itself as leader, trying to install it");
                 pendingViews.add(view);
                 flushes = new HashSet<>();
@@ -237,8 +248,8 @@ public class VSyncService extends ComponentDefinition {
         @Override
         public void handle(FlushReq flushReq, BEB_Deliver beb_deliver) {
             LOG.debug("Received Flush-request");
-            if (flushReq.oldView == viewId && flushReq.viewId == pendingViews.peek().id)
-                trigger(new Message(self, pendingViews.peek().leader, new Flush(latestUpdate, pendingViews.peek().id, viewId)), net);
+            if ((flushReq.oldView == viewId || viewId == 0) && flushReq.viewId == pendingViews.peek().id)
+                trigger(new Message(selfPid.netAddress, pendingViews.peek().leader.netAddress, new Flush(latestUpdate, pendingViews.peek().id, viewId, selfPid)), net);
         }
     };
 
@@ -268,15 +279,26 @@ public class VSyncService extends ComponentDefinition {
         @Override
         public void handle(Flush flush, Message context) {
             LOG.debug("Received Flush");
-            if (flush.oldView == viewId && flush.viewId == pendingViews.peek().id && pendingViews.peek().leader.sameHostAs(self)) {
-                flushes.add(context.getSource());
+            if ((flush.oldView == viewId || flush.oldView == 0) && flush.viewId == pendingViews.peek().id && pendingViews.peek().leader.equals(selfPid)) {
+                flushes.add(flush.source);
                 if (flush.latestUpdate != null && flush.latestUpdate.timestamp > latestUpdate.timestamp)
                     latestUpdate = flush.latestUpdate;
             }
         }
     };
 
+    /**
+     * Someone wants to join and we are leader, forward to GMS to make the decision.
+     */
+    protected final Handler<GMSJoin> gmsJoinHandler = new Handler<GMSJoin>() {
+        @Override
+        public void handle(GMSJoin gmsJoin) {
+            trigger(gmsJoin, gmsPort);
+        }
+    };
+
     {
+        subscribe(gmsJoinHandler, vSyncPort);
         subscribe(viewInstallHandler, broadcastPort);
         subscribe(flushReqHandler, broadcastPort);
         subscribe(deliverHandler, broadcastPort);

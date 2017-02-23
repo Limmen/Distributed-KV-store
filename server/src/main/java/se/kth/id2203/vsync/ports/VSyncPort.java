@@ -1,5 +1,6 @@
 package se.kth.id2203.vsync.ports;
 
+import se.kth.id2203.gms.events.GMSJoin;
 import se.kth.id2203.gms.events.View;
 import se.kth.id2203.vsync.events.*;
 import se.sics.kompics.PortType;
@@ -12,6 +13,7 @@ public class VSyncPort extends PortType{
         request(VSyncInit.class);
         request(VS_Broadcast.class);
         request(BlockOk.class);
+        request(GMSJoin.class);
         indication(VS_Deliver.class);
         indication(View.class);
         indication(Block.class);

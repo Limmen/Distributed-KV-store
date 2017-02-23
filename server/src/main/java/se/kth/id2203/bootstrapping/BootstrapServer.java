@@ -105,8 +105,6 @@ public class BootstrapServer extends ComponentDefinition {
                     state = State.DONE;
                 }
             } else if (state == State.DONE) {
-                //LOG.debug("bootstrap done, timeout triggered");
-                //tearDown();
                 suicide();
             }
         }
@@ -133,7 +131,7 @@ public class BootstrapServer extends ComponentDefinition {
 
         @Override
         public void handle(CheckIn content, Message context) {
-            active.add(context.getSource());
+            active.add(content.netaddress);
         }
     };
 

@@ -1,6 +1,6 @@
 package se.kth.id2203.epfd.events;
 
-import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.KompicsEvent;
 
 /**
@@ -8,9 +8,9 @@ import se.sics.kompics.KompicsEvent;
  */
 public class Restore implements KompicsEvent {
 
-	public final NetAddress restored;
+	public final PID restored;
 
-	public Restore(NetAddress restored) {
+	public Restore(PID restored) {
 		this.restored = restored;
 	}
 

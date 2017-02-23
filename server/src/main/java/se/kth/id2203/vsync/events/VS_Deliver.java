@@ -1,6 +1,6 @@
 package se.kth.id2203.vsync.events;
 
-import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.KompicsEvent;
 import se.sics.kompics.PatternExtractor;
 
@@ -14,10 +14,10 @@ import java.io.Serializable;
 public class VS_Deliver implements PatternExtractor<Class, KompicsEvent>, Serializable {
 
     public final KompicsEvent payload;
-    public final NetAddress source;
+    public final PID source;
     public final long viewId;
 
-    public VS_Deliver(KompicsEvent payload, NetAddress source, long viewId) {
+    public VS_Deliver(KompicsEvent payload, PID source, long viewId) {
         this.payload = payload;
         this.source = source;
         this.viewId = viewId;

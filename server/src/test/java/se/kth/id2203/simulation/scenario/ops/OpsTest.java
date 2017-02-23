@@ -44,13 +44,15 @@ import se.sics.kompics.simulator.run.LauncherComp;
 public class OpsTest {
     
     private static final int NUM_MESSAGES = 10;
+    private static final int SERVERS = 5;
+    private static final int REPLICATION_DEGREE = 3;
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
     public static void main(String[] args) {
         
         long seed = 123;
         SimulationScenario.setSeed(seed);
-        SimulationScenario simpleBootScenario = ScenarioGen.simpleOps(3);
+        SimulationScenario simpleBootScenario = ScenarioGen.simpleOps(SERVERS, REPLICATION_DEGREE);
         res.put("messages", NUM_MESSAGES);
         simpleBootScenario.simulate(LauncherComp.class);
         for (int i = 0; i < NUM_MESSAGES/2; i++) {

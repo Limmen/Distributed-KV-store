@@ -1,6 +1,6 @@
 package se.kth.id2203.gms.events;
 
-import se.kth.id2203.networking.NetAddress;
+import se.kth.id2203.overlay.PID;
 import se.sics.kompics.KompicsEvent;
 
 import java.io.Serializable;
@@ -13,31 +13,27 @@ import java.util.Set;
  */
 public class View implements KompicsEvent, Serializable {
 
-    
-
-	public final Set<NetAddress> members;
+	public final Set<PID> members;
     public final long id;
-    public final NetAddress leader;
+    public final PID leader;
 
-    public View(Set<NetAddress> members, long id, NetAddress leader) {
+    public View(Set<PID> members, long id, PID leader) {
         this.members = members;
         this.id = id;
         this.leader = leader;
     }
 
-    public boolean sameView(Set<NetAddress> nodes, NetAddress leader2){
+    public boolean sameView(Set<PID> nodes, PID leader2){
         if(leader == null)
             return false;
         if(leader2 == null)
             return false;
-        if(!leader.sameHostAs(leader2))
-            return false;
-        if(leader.compareTo(leader2) != 0)
+        if(!leader.equals(leader2))
             return false;
         if(nodes.size() != members.size())
             return false;
-        for(NetAddress netAddress : members){
-            if(!nodes.contains(netAddress))
+        for(PID pid : members){
+            if(!nodes.contains(pid))
                 return false;
         }
         return true;
