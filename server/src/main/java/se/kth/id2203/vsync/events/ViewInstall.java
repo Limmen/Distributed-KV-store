@@ -13,9 +13,9 @@ import java.io.Serializable;
 public class ViewInstall implements KompicsEvent, Serializable {
 
     public final View view;
-    public final StateUpdate latestUpdate;
+    public final StateTransfer latestUpdate;
 
-    public ViewInstall(View view, StateUpdate latestUpdate) {
+    public ViewInstall(View view, StateTransfer latestUpdate) {
         this.view = view;
         this.latestUpdate = latestUpdate;
     }

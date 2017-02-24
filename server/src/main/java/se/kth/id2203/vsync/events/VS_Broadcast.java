@@ -9,10 +9,10 @@ import se.sics.kompics.KompicsEvent;
  */
 public class VS_Broadcast implements KompicsEvent {
 
-    public final StateUpdate payload;
+    public final StateTransfer payload;
     public final long viewId;
 
-    public VS_Broadcast(StateUpdate payload, long viewId) {
+    public VS_Broadcast(StateTransfer payload, long viewId) {
         this.payload = payload;
         this.viewId = viewId;
     }

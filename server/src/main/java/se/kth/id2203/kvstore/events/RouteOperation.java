@@ -17,6 +17,7 @@ public class RouteOperation implements KompicsEvent, Serializable {
     public final Operation operation;
     public final NetAddress client;
     public UUID id;
+    public String oldValue = null;
 
     public RouteOperation(Operation operation, NetAddress client) {
         this.operation = operation;

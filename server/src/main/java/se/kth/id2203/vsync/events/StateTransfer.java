@@ -7,18 +7,18 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * StateUpdate event, basic state-transfer that is issued by leader to all replicas before a write to the shared memory
+ * StateTransfer event, basic state-transfer that is issued by leader to all replicas before a write to the shared memory
  * is completed.
  *
  * @author Kim Hammar on 2017-02-14.
  */
-public class StateUpdate implements KompicsEvent, Serializable{
+public class StateTransfer implements KompicsEvent, Serializable{
 
     public final Map<Integer, String> keyValues;
     public final long timestamp;
     public final UUID id;
 
-    public StateUpdate(Map<Integer, String> keyValues, long timestamp) {
+    public StateTransfer(Map<Integer, String> keyValues, long timestamp) {
         this.keyValues = keyValues;
         this.timestamp = timestamp;
         this.id = UUID.randomUUID();

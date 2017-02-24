@@ -9,11 +9,11 @@ import java.util.UUID;
 /**
  * @author Kim Hammar on 2017-02-21.
  */
-public class UpdateAcc implements KompicsEvent, Serializable {
+public class OperationAck implements KompicsEvent, Serializable {
     public final UUID id;
     public final PID source;
     
-    public UpdateAcc(UUID id, PID source) {
+    public OperationAck(UUID id, PID source) {
         this.id = id;
         this.source = source;
     }

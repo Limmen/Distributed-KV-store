@@ -45,13 +45,13 @@ public class VSyncService extends ComponentDefinition {
     private long viewId = 0;
     private boolean flushing;
     private boolean blocked;
-    private StateUpdate latestUpdate;
+    private StateTransfer latestUpdate;
     private Queue<View> pendingViews = new LinkedList<>();
     private Set<PID> flushes = new HashSet<>();
     private UUID timeoutId;
     private Set<PID> acks = new HashSet<>();
-    private Queue<StateUpdate> pendingUpdates;
-    private StateUpdate pendingUpdate;
+    private Queue<StateTransfer> pendingUpdates;
+    private StateTransfer pendingUpdate;
 
     /**
      * Initialize timer
@@ -78,7 +78,7 @@ public class VSyncService extends ComponentDefinition {
             LOG.debug("VSyncService initialized");
             flushing = false;
             blocked = true;
-            latestUpdate = vSyncInit.stateUpdate;
+            latestUpdate = vSyncInit.stateTransfer;
             pendingViews = new LinkedList<>();
             flushes = new HashSet<>();
             selfPid = vSyncInit.self;
@@ -135,7 +135,7 @@ public class VSyncService extends ComponentDefinition {
                     LOG.warn("Resending update to backups waiting for {} nodes ", notAcked.size());
                     trigger(new BEB_Broadcast(new VS_Deliver(pendingUpdate, selfPid, viewId), notAcked, selfPid), broadcastPort);
                 } else {
-                    trigger(new VS_Deliver(new WriteComplete(pendingUpdate.id), selfPid, viewId), vSyncPort);
+                    trigger(new VS_Deliver(new OperationComplete(pendingUpdate.id), selfPid, viewId), vSyncPort);
                     latestUpdate = pendingUpdate;
                     pendingUpdate = null;
                 }
@@ -190,9 +190,9 @@ public class VSyncService extends ComponentDefinition {
         @Override
         public void handle(VS_Deliver vs_deliver, BEB_Deliver beb_deliver) {
             if (vs_deliver.viewId == viewId && vs_deliver.source.equals(currentView.leader)) {
-                LOG.debug("Received StateUpdate from leader in view, delivering to application");
-                latestUpdate = (StateUpdate) vs_deliver.payload;
-                UpdateAcc acc = new UpdateAcc(latestUpdate.id, selfPid);
+                LOG.debug("Received StateTransfer from leader in view, delivering to application");
+                latestUpdate = (StateTransfer) vs_deliver.payload;
+                OperationAck acc = new OperationAck(latestUpdate.id, selfPid);
                 LOG.warn("Sending acc to {} ", beb_deliver.source);
                 trigger(new Message(selfPid.netAddress, beb_deliver.source.netAddress, acc), net);
                 trigger(vs_deliver, vSyncPort);
@@ -203,10 +203,10 @@ public class VSyncService extends ComponentDefinition {
     /**
      * Received ACK for update from backup in the view
      */
-    protected final ClassMatchedHandler<UpdateAcc, Message> accHandler = new ClassMatchedHandler<UpdateAcc, Message>() {
+    protected final ClassMatchedHandler<OperationAck, Message> accHandler = new ClassMatchedHandler<OperationAck, Message>() {
 
         @Override
-        public void handle(UpdateAcc content, Message context) {
+        public void handle(OperationAck content, Message context) {
             LOG.warn("Received acc from {} ", context.getSource());
             acks.add(content.source);
         }

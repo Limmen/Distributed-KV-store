@@ -7,10 +7,10 @@ import java.util.UUID;
 /**
  * @author Kim Hammar on 2017-02-21.
  */
-public class WriteComplete implements KompicsEvent {
+public class OperationComplete implements KompicsEvent {
     public final UUID id;
 
-    public WriteComplete(UUID id) {
+    public OperationComplete(UUID id) {
         this.id = id;
     }
 }

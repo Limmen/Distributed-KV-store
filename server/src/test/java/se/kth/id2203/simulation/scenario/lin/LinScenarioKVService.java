@@ -49,9 +49,10 @@ public class LinScenarioKVService extends ComponentDefinition {
     private View replicationGroup;
     private boolean blocked;
     private Queue<RouteOperation> operationQueue = new LinkedList<>();
-    private Queue<RouteOperation> pendingWrites = new LinkedList<>();
+    private Queue<RouteOperation> pendingOperations = new LinkedList<>();
     private UUID timeoutId;
     private final SimulationResultMap res = SimulationResultSingleton.getInstance();
+
 
     /**
      * Setup timer
@@ -73,8 +74,8 @@ public class LinScenarioKVService extends ComponentDefinition {
     protected final Handler<KVServiceTimeout> timeoutHandler = new Handler<KVServiceTimeout>() {
         @Override
         public void handle(KVServiceTimeout event) {
-            if(operationQueue.size() > 0 && !blocked && replicationGroup != null){
-                while(operationQueue.size() > 0){
+            if (operationQueue.size() > 0 && !blocked && replicationGroup != null) {
+                while (operationQueue.size() > 0) {
                     trigger(new Message(selfPid.netAddress, replicationGroup.leader.netAddress, operationQueue.poll()), net);
                 }
             }
@@ -111,39 +112,20 @@ public class LinScenarioKVService extends ComponentDefinition {
             if (replicationGroup.leader.equals(selfPid)) {
                 timestamp++;
                 LOG.debug("Leader received operation");
-                StateUpdate update;
                 if (!blocked) {
                     switch (routeOperation.operation.operationCode) {
                         case GET:
-                            String val = keyValues.get(routeOperation.operation.key.hashCode());
-                            if (val == null)
-                                val = "not found";
-                            trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, val)), net);
+                            sendOp(routeOperation);
                             break;
                         case PUT:
                             keyValues.put(routeOperation.operation.key.hashCode(), routeOperation.operation.value);
-                            update = new StateUpdate(ImmutableMap.copyOf(keyValues), timestamp);
-                            trigger(new VS_Broadcast(update, replicationGroup.id), vSyncPort);
-                            routeOperation.id = update.id;
-                            pendingWrites.add(routeOperation);
+                            sendOp(routeOperation);
                             break;
                         case CAS:
-                            String res = keyValues.get(routeOperation.operation.key.hashCode());
-                            LOG.warn("Key {} | Reference value {} | New value {} | Result from get {}",
-                                    routeOperation.operation.key.hashCode(),
-                                    routeOperation.operation.referenceValue,
-                                    routeOperation.operation.value,
-                                    res);
-                            if(res !=null && res.equals(routeOperation.operation.referenceValue)){
+                            routeOperation.oldValue = keyValues.get(routeOperation.operation.key.hashCode());
+                            if (routeOperation.oldValue != null && routeOperation.oldValue.equals(routeOperation.operation.referenceValue))
                                 keyValues.put(routeOperation.operation.key.hashCode(), routeOperation.operation.value);
-                                update = new StateUpdate(ImmutableMap.copyOf(keyValues), timestamp);
-                                trigger(new VS_Broadcast(update, replicationGroup.id), vSyncPort);
-                                routeOperation.id = update.id;
-                                pendingWrites.add(routeOperation);
-                            } else {
-                                trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id,
-                                        OpResponse.Code.OK, "Reference value does not match new value")), net);
-                            }
+                            sendOp(routeOperation);
                             break;
                         default:
                             trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.NOT_IMPLEMENTED)), net);
@@ -157,6 +139,13 @@ public class LinScenarioKVService extends ComponentDefinition {
             }
         }
     };
+
+    private void sendOp(RouteOperation routeOperation) {
+        StateTransfer snapshot = new StateTransfer(ImmutableMap.copyOf(keyValues), timestamp);
+        trigger(new VS_Broadcast(snapshot, replicationGroup.id), vSyncPort);
+        routeOperation.id = snapshot.id;
+        pendingOperations.add(routeOperation);
+    }
 
     /**
      * Received new view from VSyncService
@@ -180,37 +169,53 @@ public class LinScenarioKVService extends ComponentDefinition {
             timestamp = 0;
             blocked = false;
             selfPid = replicationInit.self;
-            trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes), selfPid, new StateUpdate(ImmutableMap.copyOf(keyValues), timestamp)), vSyncPort);
+            trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes), selfPid, new StateTransfer(ImmutableMap.copyOf(keyValues), timestamp)), vSyncPort);
         }
     };
 
     /**
      * Received state update from VSyncService
      */
-    protected final ClassMatchedHandler<StateUpdate, VS_Deliver> stateUpdateHandler = new ClassMatchedHandler<StateUpdate, VS_Deliver>() {
+    protected final ClassMatchedHandler<StateTransfer, VS_Deliver> stateUpdateHandler = new ClassMatchedHandler<StateTransfer, VS_Deliver>() {
         @Override
-        public void handle(StateUpdate stateUpdate, VS_Deliver vs_deliver) {
+        public void handle(StateTransfer stateTransfer, VS_Deliver vs_deliver) {
             LOG.debug("KVService received state update from VSyncService");
             keyValues = new HashMap<>();
-            if (stateUpdate != null)
-                keyValues.putAll(stateUpdate.keyValues);
+            if (stateTransfer != null)
+                keyValues.putAll(stateTransfer.keyValues);
             printStore();
             res.put(selfPid.netAddress.getIp().getHostAddress(), keyValues);
         }
     };
 
     /**
-     * Write complete, respond to client
+     * Operation complete, respond to client
      */
-    protected final ClassMatchedHandler<WriteComplete, VS_Deliver> writeCompleteHandler = new ClassMatchedHandler<WriteComplete, VS_Deliver>() {
+    protected final ClassMatchedHandler<OperationComplete, VS_Deliver> writeCompleteHandler = new ClassMatchedHandler<OperationComplete, VS_Deliver>() {
         @Override
-        public void handle(WriteComplete writeComplete, VS_Deliver vs_deliver) {
-            Iterator<RouteOperation> i = pendingWrites.iterator();
+        public void handle(OperationComplete operationComplete, VS_Deliver vs_deliver) {
+            Iterator<RouteOperation> i = pendingOperations.iterator();
             while (i.hasNext()) {
                 RouteOperation routeOperation = i.next();
-                if(writeComplete.id.equals(routeOperation.id)){
-                    LOG.debug("Write complete from Vsync layer, delivering to the client");
-                    trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, "Write successful")), net);
+                if (operationComplete.id.equals(routeOperation.id)) {
+                    LOG.debug("Operation complete from Vsync layer, delivering to the client");
+                    switch (routeOperation.operation.operationCode) {
+                        case GET:
+                            String val = keyValues.get(routeOperation.operation.key.hashCode());
+                            if (val == null)
+                                val = "not found";
+                            trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, val)), net);
+                            break;
+                        case PUT:
+                            trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, "Write successful")), net);
+                            break;
+                        case CAS:
+                            if (routeOperation.oldValue == null) {
+                                routeOperation.oldValue = "not found";
+                            }
+                            trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, routeOperation.oldValue)), net);
+                            break;
+                    }
                     i.remove();
                 }
             }
@@ -240,8 +245,7 @@ public class LinScenarioKVService extends ComponentDefinition {
 
     /**
      * Kompics "instance initializer", subscribe handlers to ports.
-     */
-    {
+     */ {
         subscribe(startHandler, control);
         subscribe(timeoutHandler, timer);
         subscribe(routedOpHandler, net);

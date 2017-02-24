@@ -12,12 +12,12 @@ public class VSyncInit implements KompicsEvent {
 
 	public final Set<PID> nodes;
     public final PID self;
-    public final StateUpdate stateUpdate;
+    public final StateTransfer stateTransfer;
 
-	public VSyncInit(Set<PID> nodes, PID self, StateUpdate stateUpdate){
+	public VSyncInit(Set<PID> nodes, PID self, StateTransfer stateTransfer){
 		this.nodes = nodes;
         this.self = self;
-        this.stateUpdate = stateUpdate;
+        this.stateTransfer = stateTransfer;
     }
 
 }

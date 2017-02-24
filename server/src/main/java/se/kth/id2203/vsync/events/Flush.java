@@ -12,12 +12,12 @@ import java.io.Serializable;
  */
 public class Flush implements KompicsEvent, Serializable {
 
-    public final StateUpdate latestUpdate;
+    public final StateTransfer latestUpdate;
     public final long viewId;
     public final long oldView;
     public final PID source;
 
-    public Flush(StateUpdate latestUpdate, long viewId, long oldView, PID source) {
+    public Flush(StateTransfer latestUpdate, long viewId, long oldView, PID source) {
         this.latestUpdate = latestUpdate;
         this.viewId = viewId;
         this.oldView = oldView;

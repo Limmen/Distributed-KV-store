@@ -26,10 +26,17 @@ maven clean install
 ### Running
 
 #### Bootstrap Server Node
+
 To run a bootstrap server node `cd` into the `server` directory and execute:
 
 ```
 java -jar target/project17-server-1.0-SNAPSHOT-shaded.jar -p 45678
+```
+
+Or, stay in root dir and run:
+
+```
+./bootstrap_server.sh
 ```
 
 This will start the bootstrap server on localhost:45678.
@@ -40,6 +47,13 @@ After you started a bootstrap server on `<bsip>:<bsport>`, again from the `serve
 ```
 java -jar target/project17-server-1.0-SNAPSHOT-shaded.jar -p 56789 -c <bsip>:<bsport>
 ```
+
+Or stay in root dir and run:
+
+```
+./server.sh port
+```
+
 This will start the bootstrap server on localhost:56789, and ask it to connect to the bootstrap server at `<bsip>:<bsport>`.
 Make sure you start every node on a different port if they are all running directly on the local machine.
 
@@ -51,6 +65,12 @@ To start a client (after the cluster is properly running), `cd` into the `client
 
 ```
 java -jar target/project17-client-1.0-SNAPSHOT-shaded.jar -p 56787 -b <bsip>:<bsport>
+```
+
+Or stay in root dir and run:
+
+```
+./client.sh
 ```
 
 Again, make sure not to double allocate ports on the same machine.
