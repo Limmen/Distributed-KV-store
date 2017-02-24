@@ -152,7 +152,8 @@ public class ViewScenarioKVService extends ComponentDefinition {
             result.put("members", convertFromNetAddr(view.members));
             result.put("id", view.id);
             result.put("leader", view.leader.netAddress.getIp().getHostAddress());
-            res.put(selfPid.netAddress.getIp().getHostAddress(),result);
+            ArrayList<HashMap<String,Object>> r = res.get(selfPid.netAddress.getIp().getHostAddress(), ArrayList.class);
+            r.add(result);
             blocked = false;
             replicationGroup = view;
         }
@@ -176,6 +177,7 @@ public class ViewScenarioKVService extends ComponentDefinition {
             timestamp = 0;
             blocked = false;
             selfPid = replicationInit.self;
+            res.put(selfPid.netAddress.getIp().getHostAddress(),new ArrayList<>());
             trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes), selfPid, new StateTransfer(ImmutableMap.copyOf(keyValues), timestamp)), vSyncPort);
         }
     };

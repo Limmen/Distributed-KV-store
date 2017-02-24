@@ -482,4 +482,28 @@ public abstract class ScenarioGen {
             }
         };
     }
+    
+    public static SimulationScenario reconfTest(final int servers, final int replicationDegree, final int join) {
+        return new SimulationScenario() {
+            {
+                SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(servers, startScenarioView, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
+                    }
+                };
+                
+                SimulationScenario.StochasticProcess addServer = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(join, startScenarioView, new BasicIntSequentialDistribution(servers+1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
+                    }
+                };
+                
+                startCluster.start();
+                addServer.startAfterStartOf(60000, startCluster);
+                terminateAfterTerminationOf(60000, addServer);
+            }
+        };
+    }
 }

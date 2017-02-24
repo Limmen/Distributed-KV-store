@@ -24,6 +24,7 @@
 package se.kth.id2203.simulation.scenario.rep;
 
 import junit.framework.Assert;
+import se.kth.id2203.kvstore.Operation;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.simulation.scenario.ScenarioGen;
@@ -64,12 +65,11 @@ public class ReplicationTest {
         ArrayList<HashMap<Integer, String>> nodeStores = new ArrayList<>();
         for (int i = 1; i <= SERVERS; i++) {
             String ip = "192.168.0." + i;
-            HashMap test = res.get(ip, HashMap.class);
-           nodeStores.add(res.get(ip, HashMap.class));
+            nodeStores.add(res.get(ip, HashMap.class));
         }
         HashMap<Integer, String> reference = nodeStores.get(0);
         for (HashMap<Integer, String> nodeStore: nodeStores) {
-            Assert.assertTrue(reference.equals(nodeStore));
+        	Assert.assertTrue(reference.equals(nodeStore));
         }
     }
 

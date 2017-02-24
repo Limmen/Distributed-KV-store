@@ -1,45 +1,45 @@
-package se.kth.id2203.simulation.scenario.view;
-
-
-import org.junit.Assert;
-import se.kth.id2203.simulation.result.SimulationResultMap;
-import se.kth.id2203.simulation.result.SimulationResultSingleton;
-import se.kth.id2203.simulation.scenario.ScenarioGen;
-import se.sics.kompics.simulator.SimulationScenario;
-import se.sics.kompics.simulator.run.LauncherComp;
+package se.kth.id2203.simulation.scenario.reconf;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Set;
 
-/**
+import org.junit.Assert;
+
+import se.kth.id2203.simulation.result.SimulationResultMap;
+import se.kth.id2203.simulation.result.SimulationResultSingleton;
+import se.kth.id2203.simulation.scenario.ScenarioGen;
+import se.kth.id2203.simulation.scenario.view.ViewWrapper;
+import se.sics.kompics.simulator.SimulationScenario;
+import se.sics.kompics.simulator.run.LauncherComp;
+
+
+/*
  * 
- * Test if KV service gets right view from the VSync service. 
- * If this test passes then the BEB,EPFD, Omega and GMS works as well. 
+ * This test will check if nodes get a correct view once new nodes joins one partition.
+ * 
+ * TODO: Test linearisability?
+ * 
  * 
  */
-public class ViewTest {
-	
-    private static final int SERVERS = 5;
-    private static final int REPLICATION_DEGREE = 3;
-    private static final int CRASHES = 2;
-    private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
+public class ReconfTest {
 
+	private static final int SERVERS = 3;
+    private static final int REPLICATION_DEGREE = 3;
+    private static final int JOINS = 2;
+    
+    private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
     
     
-    public static void main(String[] args) {
-        
-        long seed = 123;
+    public static void main(String[] args){
+    	long seed = 123;
         SimulationScenario.setSeed(seed);
-        SimulationScenario viewTestScenario = ScenarioGen.viewTest(SERVERS, REPLICATION_DEGREE, CRASHES);
+        SimulationScenario viewTestScenario = ScenarioGen.reconfTest(SERVERS, REPLICATION_DEGREE, JOINS);
        
         
         viewTestScenario.simulate(LauncherComp.class);
         
-       
-        
-        for(int i = 3; i <= SERVERS; i++){
+        for(int i = 1; i <= SERVERS; i++){
         	String ip = "192.168.0." + i;
         	
         	ArrayList<HashMap<String,Object>> views = res.get(ip, ArrayList.class);
@@ -50,14 +50,14 @@ public class ViewTest {
         	ViewWrapper wp1 = fromHashMapToView(views.get(1));
         	
         	Assert.assertEquals(1, wp0.id);
-        	Assert.assertEquals(5, wp0.members.size());        	
+        	Assert.assertEquals(3, wp0.members.size());        	
         	
         	Assert.assertEquals(2, wp1.id);
-        	Assert.assertEquals(3, wp1.members.size());
+        	Assert.assertEquals(5, wp1.members.size());
         	
         }
         
-        for(int i = 1; i <= 2; i++){
+        for(int i = SERVERS+1; i <= SERVERS+JOINS; i++){
         	String ip = "192.168.0." + i;
         	
         	ArrayList<HashMap<String,Object>> views = res.get(ip, ArrayList.class);
@@ -65,14 +65,12 @@ public class ViewTest {
         	Assert.assertEquals(1, views.size());
         	ViewWrapper wp0 = fromHashMapToView(views.get(0));
         	
-        	Assert.assertEquals(1, wp0.id);
+        	Assert.assertEquals(2, wp0.id);
         	Assert.assertEquals(5, wp0.members.size());
         }
-        
-        
-        
+    	
     }
-    
+
     private static ViewWrapper fromHashMapToView(HashMap<String,Object> from){
     	String leader = (String) from.get("leader");
     	Set<String> members = (Set<String>) from.get("members");
@@ -84,5 +82,4 @@ public class ViewTest {
     	viewWrapper.members = members;
     	return viewWrapper;
     }
-      
 }
