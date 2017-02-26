@@ -42,6 +42,7 @@ import se.sics.kompics.timer.CancelPeriodicTimeout;
 import se.sics.kompics.timer.SchedulePeriodicTimeout;
 import se.sics.kompics.timer.Timer;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -101,7 +102,7 @@ public class BootstrapServer extends ComponentDefinition {
                 LOG.info("{} hosts in ready set.", ready.size());
                 if (ready.size() >= bootThreshold) {
                     LOG.info("Finished seeding. Bootstrapping complete.");
-                    trigger(new Booted(initialAssignment), boot);
+                    trigger(new Booted(initialAssignment, new HashMap<Integer, String>()), boot);
                     state = State.DONE;
                 }
             } else if (state == State.DONE) {
@@ -118,7 +119,7 @@ public class BootstrapServer extends ComponentDefinition {
             LOG.info("Seeding assignments...");
             initialAssignment = e.assignment;
             for (NetAddress node : active) {
-                trigger(new Message(self, node, new Boot(initialAssignment)), net);
+                trigger(new Message(self, node, new Boot(initialAssignment, new HashMap<Integer, String>())), net);
             }
             ready.add(self);
         }

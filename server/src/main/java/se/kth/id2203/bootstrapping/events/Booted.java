@@ -26,14 +26,18 @@ package se.kth.id2203.bootstrapping.events;
 import se.kth.id2203.bootstrapping.NodeAssignment;
 import se.sics.kompics.KompicsEvent;
 
+import java.util.HashMap;
+
 /**
  * Sent locally between from bootstrap-client to VSOverlayManager, contains the node-assignment for partitions.
  */
 public class Booted implements KompicsEvent {
 
     public final NodeAssignment assignment;
+    public final HashMap<Integer, String> keyValues;
 
-    public Booted(final NodeAssignment assignment) {
+    public Booted(final NodeAssignment assignment, HashMap<Integer, String> keyValues) {
         this.assignment = assignment;
+        this.keyValues = keyValues;
     }
 }

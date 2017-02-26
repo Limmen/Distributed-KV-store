@@ -77,6 +77,38 @@ Again, make sure not to double allocate ports on the same machine.
 
 The client will attempt to contact the bootstrap server and give you a small command promt if successful. Type `help` to see the available commands.
 
+### Cluster
+
+To start a cluster of N servers in one shell run the following in the root dir:
+
+```
+./cluster.sh N
+```
+
+Stop the whole cluster by pressing Control-C
+
+To join en existing cluster with a set of N servers (ofcourse you can also join one by one manually with `./server.sh port`) run the followng in the root dir:
+
+```
+./cluster_join.sh N
+```
+
+Stop the set of joined servers by pressing Control-C
+
+These startup scripts will start the bootstrap-server on port 45678 and the other servers on ports 3000-3000+N. 
+
+The cluster_join will send join requests to server on port 45678 and allocate ports 4000-4000+N to the new servers.
+ 
+So make sure these port-ranges are free on your machine before running. You can always just modify the scripts if necessary.
+
+## Configuration
+
+See `src/main/resources/` and `src/test/resources/` in each project to find configuration parameters.
+
+## Tests
+
+A collection of test-scenarios using Kompics simulation framework can be found at `server/src/test/`, each test has its own main-method and is supposed to be ran individually.
+
 ## Authors
 
 Template provided by 

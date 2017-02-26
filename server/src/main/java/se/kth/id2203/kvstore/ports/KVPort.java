@@ -1,5 +1,6 @@
 package se.kth.id2203.kvstore.ports;
 
+import se.kth.id2203.kvstore.events.Handover;
 import se.kth.id2203.kvstore.events.ReplicationInit;
 import se.sics.kompics.PortType;
 
@@ -10,5 +11,6 @@ public class KVPort extends PortType {
 
     {
         request(ReplicationInit.class);
+        request(Handover.class);
     }
 }

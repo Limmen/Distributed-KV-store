@@ -56,15 +56,17 @@ public class SimpleOpsScenarioClient extends ComponentDefinition {
     private final NetAddress server = config().getValue("id2203.project.bootstrap-address", NetAddress.class);
     private final SimulationResultMap res = SimulationResultSingleton.getInstance();
     private final Map<UUID, Operation> pending = new TreeMap<>();
-    private boolean done = false;
+    private boolean get = false;
+    private boolean cas1 = false;
+    private boolean cas2 = false;
     //******* Handlers ******
     protected final Handler<Start> startHandler = new Handler<Start>() {
 
         @Override
         public void handle(Start event) {
             int messages = res.get("messages", Integer.class);
-            int half = messages / 2;
-            for(int i = 0; i < half; i++){
+            int fourth = messages / 4;
+            for (int i = 0; i < fourth; i++) {
                 sendPut(i);
             }
         }
@@ -75,24 +77,56 @@ public class SimpleOpsScenarioClient extends ComponentDefinition {
         public void handle(OpResponse content, Message context) {
             LOG.debug("Got OpResponse: {}", content.toString());
             Operation operation = pending.remove(content.id);
+            LOG.debug("PendingOp was: " + operation.toString());
             if (operation.key != null) {
-                res.put(operation.operationCode + "-" + operation.key, content.status.toString() + " - " + content.value);
+                if (operation.operationCode == Operation.OperationCode.CAS) {
+                    if (!cas2)
+                        res.put(operation.operationCode + "1-" + operation.key, content.status.toString() + " - " + content.value);
+                    else
+                        res.put(operation.operationCode + "2-" + operation.key, content.status.toString() + " - " + content.value);
+                } else
+                    res.put(operation.operationCode + "-" + operation.key, content.status.toString() + " - " + content.value);
             } else {
                 LOG.warn("ID {} was not pending! Ignoring response.", content.id);
             }
             int messages = res.get("messages", Integer.class);
-            int half = messages / 2;
-            if(pending.isEmpty() && !done){
-                for(int i = 0; i < half; i++){
+            int fourth = messages / 4;
+            if (pending.isEmpty() && !get) {
+                for (int i = 0; i < fourth; i++) {
                     sendGet(i);
                 }
-                done = true;
+                get = true;
+            }
+            if (get && pending.isEmpty() && !cas1) {
+                for (int i = 0; i < fourth; i++) {
+                    if ((i % 2) == 0)
+                        sendCas("1", i, i, i + 1);
+                    else
+                        sendCas("1", i, -1, -100);
+                }
+                cas1 = true;
+            }
+            if (cas1 && !cas2 && pending.isEmpty()) {
+
+                for (int i = 0; i < fourth; i++) {
+                    sendCas("2", i, i, i);
+                }
+                cas2 = true;
             }
         }
     };
 
+    private void sendCas(String prefix, int key, int ref, int val) {
+        Operation op = new Operation("test" + key, Integer.toString(val), Integer.toString(ref), Operation.OperationCode.CAS);
+        RouteMsg rm = new RouteMsg(op.key, op); // don't know which partition is responsible, so ask the bootstrap server to forward it
+        trigger(new Message(self, server, rm), net);
+        pending.put(op.id, op);
+        LOG.info("Sending {}", op.toString());
+        res.put(op.operationCode + prefix + "-" + op.key, "SENT");
+    }
+
     private void sendPut(int i) {
-        Operation op = new Operation("test" + i, Integer.toString(i), "",Operation.OperationCode.PUT);
+        Operation op = new Operation("test" + i, Integer.toString(i), "", Operation.OperationCode.PUT);
         RouteMsg rm = new RouteMsg(op.key, op); // don't know which partition is responsible, so ask the bootstrap server to forward it
         trigger(new Message(self, server, rm), net);
         pending.put(op.id, op);
@@ -101,7 +135,7 @@ public class SimpleOpsScenarioClient extends ComponentDefinition {
     }
 
     private void sendGet(int i) {
-        Operation op = new Operation("test" + i, "", "",Operation.OperationCode.GET);
+        Operation op = new Operation("test" + i, "", "", Operation.OperationCode.GET);
         RouteMsg rm = new RouteMsg(op.key, op); // don't know which partition is responsible, so ask the bootstrap server to forward it
         trigger(new Message(self, server, rm), net);
         pending.put(op.id, op);

@@ -1,4 +1,4 @@
-package se.kth.id2203.simulation.scenario.lin;
+package se.kth.id2203.simulation.scenario.common;
 
 import com.google.common.base.Optional;
 import se.kth.id2203.bootstrapping.BootstrapClient;
@@ -14,7 +14,6 @@ import se.kth.id2203.kvstore.ports.KVPort;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.omega.Omega;
 import se.kth.id2203.omega.ports.OmegaPort;
-import se.kth.id2203.overlay.manager.VSOverlayManager;
 import se.kth.id2203.overlay.manager.ports.Routing;
 import se.kth.id2203.overlay.service.VSOverlayService;
 import se.kth.id2203.overlay.service.ports.OverlayServicePort;
@@ -30,15 +29,14 @@ import se.sics.kompics.timer.Timer;
  *
  *  ---- Scenario version that will create scenario subcomponents----
  */
-public class LinScenarioParentComponent extends ComponentDefinition {
-
+public class SimulationParentComponent extends ComponentDefinition {
 
     /* Ports */
     protected final Positive<Network> net = requires(Network.class);
     protected final Positive<Timer> timer = requires(Timer.class);
     /* Children */
-    protected final Component kv = create(LinScenarioKVService.class, Init.NONE);
-    protected final Component overlay = create(VSOverlayManager.class, Init.NONE);
+    protected final Component kv = create(SimulationKVService.class, Init.NONE);
+    protected final Component overlay = create(SimulationVSOverlayManager.class, Init.NONE);
     protected final Component boot;
     protected final Component epfd = create(EPFD.class, Init.NONE);
     protected final Component omega = create(Omega.class, Init.NONE);
@@ -67,6 +65,7 @@ public class LinScenarioParentComponent extends ComponentDefinition {
         connect(net, overlayService.required(Network.class), Channel.TWO_WAY);
         connect(timer, overlayService.required(Timer.class), Channel.TWO_WAY);
         connect(vSync.provided(VSyncPort.class), overlayService.required(VSyncPort.class), Channel.TWO_WAY);
+        connect(kv.provided(KVPort.class), overlayService.required(KVPort.class), Channel.TWO_WAY);
         //KV
         connect(overlay.getPositive(Routing.class), kv.getNegative(Routing.class), Channel.TWO_WAY);
         connect(net, kv.getNegative(Network.class), Channel.TWO_WAY);

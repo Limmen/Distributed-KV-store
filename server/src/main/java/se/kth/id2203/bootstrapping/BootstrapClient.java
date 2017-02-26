@@ -24,7 +24,6 @@
 package se.kth.id2203.bootstrapping;
 
 import org.slf4j.LoggerFactory;
-
 import se.kth.id2203.bootstrapping.events.Boot;
 import se.kth.id2203.bootstrapping.events.Booted;
 import se.kth.id2203.bootstrapping.events.CheckIn;
@@ -88,6 +87,8 @@ public class BootstrapClient extends ComponentDefinition {
             } else if (state == State.STARTED) {
                 trigger(new Message(self, server, Ready.event), net);
                 suicide();
+            } else if (state == State.PENDING){
+                LOG.debug("My join request is pending.. awaiting enough nodes to create new partition");
             }
         }
     };
@@ -101,7 +102,7 @@ public class BootstrapClient extends ComponentDefinition {
         public void handle(Boot content, Message context) {
             if (state == State.WAITING || state == State.PENDING) {
                 LOG.info("{} Booting up.", self);
-                trigger(new Booted(content.assignment), bootstrap);
+                trigger(new Booted(content.assignment, content.keyValues), bootstrap);
                 //trigger(new CancelPeriodicTimeout(timeoutId), timer);
                 trigger(new Message(self, server, Ready.event), net);
                 state = State.STARTED;

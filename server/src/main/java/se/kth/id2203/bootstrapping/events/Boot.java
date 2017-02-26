@@ -27,6 +27,7 @@ import se.kth.id2203.bootstrapping.NodeAssignment;
 import se.sics.kompics.KompicsEvent;
 
 import java.io.Serializable;
+import java.util.HashMap;
 
 /**
  * Message sent by bootstrap server to bootstrap-client with the initial partition assignments,
@@ -37,8 +38,10 @@ public class Boot implements KompicsEvent, Serializable {
     private static final long serialVersionUID = -4700507659951599133L;
 
     public final NodeAssignment assignment;
+    public final HashMap<Integer, String> keyValues;
 
-    public Boot(NodeAssignment assignment) {
+    public Boot(NodeAssignment assignment, HashMap<Integer, String> keyValues) {
         this.assignment = assignment;
+        this.keyValues = keyValues;
     }
 }

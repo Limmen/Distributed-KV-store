@@ -67,7 +67,7 @@ public class ClientService extends ComponentDefinition {
         
         @Override
         public void handle(Start event) {
-            LOG.debug("Starting client on {}. Waiting to connect...", self);
+            LOG.info("Starting client on {}. Waiting to connect...", self);
             long timeout = (config().getValue("id2203.project.keepAlivePeriod", Long.class) * 2);
             ScheduleTimeout st = new ScheduleTimeout(timeout);
             st.setTimeoutEvent(new ConnectTimeout(st));
@@ -129,7 +129,7 @@ public class ClientService extends ComponentDefinition {
         
         @Override
         public void handle(OpResponse content, Message context) {
-            LOG.debug("Got OpResponse: {}", content);
+            LOG.info("Got OpResponse: {}", content);
             SettableFuture<OpResponse> sf = pending.remove(content.id);
             if (sf != null) {
                 sf.set(content);

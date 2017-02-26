@@ -166,7 +166,7 @@ public class GMS extends ComponentDefinition {
     protected final Handler<Restore> restoreHandler = new Handler<Restore>() {
         @Override
         public void handle(Restore event) {
-            //Possible optimization to add previosuly suspected and removed nodes, for simplicity we don't.
+            //Possible optimization to add previously suspected and removed nodes, for simplicity we don't.
         }
     };
 
@@ -185,18 +185,21 @@ public class GMS extends ComponentDefinition {
 
     /**
      * Received a view-commit, i.e some leader received quorum of ACKS and committed a new view.
+     * Only install if the view is actually from the leader decided by Omega.
      */
     protected final ClassMatchedHandler<ViewCommit, BEB_Deliver> viewCommitHandler = new ClassMatchedHandler<ViewCommit, BEB_Deliver>() {
         @Override
         public void handle(ViewCommit viewCommit, BEB_Deliver beb_deliver) {
-            LOG.debug("GMS Peer received currentView commit, delivering new currentView");
-            currentView = viewCommit.view;
-            pendingView = null;
-            acks = new HashSet<>();
-            viewId = currentView.id;
-            members = new HashSet<>(ImmutableSet.copyOf(currentView.members));
-            trigger(new OmegaInit(currentView.members, selfPid), omegaPort);
-            trigger(currentView, gmsPort);
+            if(viewCommit.view.leader.equals(leader)){
+                LOG.debug("GMS Peer received currentView commit, delivering new currentView");
+                currentView = viewCommit.view;
+                pendingView = null;
+                acks = new HashSet<>();
+                viewId = currentView.id;
+                members = new HashSet<>(ImmutableSet.copyOf(currentView.members));
+                trigger(new OmegaInit(currentView.members, selfPid), omegaPort);
+                trigger(currentView, gmsPort);
+            }
         }
     };
 
@@ -214,6 +217,7 @@ public class GMS extends ComponentDefinition {
 
     /**
      * Join request, only allow node to join if this replication-group is not full.
+     * Adding a member to "members" will cause this process to install a new view on next timeout if it is the leader
      */
     protected final Handler<GMSJoin> joinHandler = new Handler<GMSJoin>() {
         @Override

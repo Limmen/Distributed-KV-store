@@ -1,42 +1,17 @@
-/*
- * The MIT License
- *
- * Copyright 2017 Lars Kroll <lkroll@kth.se>.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
 package se.kth.id2203.simulation.scenario.rep;
 
 import junit.framework.Assert;
 import se.kth.id2203.kvstore.Operation;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
-import se.kth.id2203.simulation.scenario.ScenarioGen;
+import se.kth.id2203.simulation.scenario.common.ScenarioGen;
 import se.sics.kompics.simulator.SimulationScenario;
 import se.sics.kompics.simulator.run.LauncherComp;
 
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- *
  * Replication test
  *
  * Starts a cluster of servers and a set of clients and runs a simulation where clients make requests to the cluster.
@@ -57,20 +32,64 @@ public class ReplicationTest {
 
         long seed = 123;
         SimulationScenario.setSeed(seed);
+
+        /**
+         * Re-use the linearizable test scenario, start SERVERS in a cluster (a single replication-group/partition)
+         * and sequential CLIENTS that will send operations to the cluster. Then verify that all replicas are in a
+         * consistent state and that the state is consistent with what operations where returned to clients and in what order.
+         */
         SimulationScenario simpleBootScenario = ScenarioGen.linearizeTest(SERVERS, CLIENTS, REPLICATION_DEGREE, CRASHES);
         res.put("messages", NUM_MESSAGES);
         res.put("trace", new ConcurrentLinkedQueue<>());
         simpleBootScenario.simulate(LauncherComp.class);
 
+        /**
+         * Get the latest keyvalue-stores for each replica
+         */
         ArrayList<HashMap<Integer, String>> nodeStores = new ArrayList<>();
         for (int i = 1; i <= SERVERS; i++) {
             String ip = "192.168.0." + i;
-            nodeStores.add(res.get(ip, HashMap.class));
+            nodeStores.add(res.get(ip+"-values", HashMap.class));
         }
+
+        /**
+         * Build up the keyvalue store from the trace of operations (i.e apply all updates in order)
+         */
+        ConcurrentLinkedQueue trace = res.get("trace", ConcurrentLinkedQueue.class);
+        HashMap<Integer, String> stateFromTrace = new HashMap<>();
+        Iterator iterator = trace.iterator();
+        while (iterator.hasNext()) {
+            HashMap<String, Object> op = (HashMap<String, Object>) iterator.next();
+            if (op.get("operationCode") != null && completed(trace, (String) op.get("id"))) {
+                if (op.get("operationCode").equals(Operation.OperationCode.PUT.toString())) {
+                    stateFromTrace.put(op.get("key").hashCode(), (String) op.get("value"));
+                }
+                if (op.get("operationCode").equals(Operation.OperationCode.CAS.toString())) {
+                    if (op.get("referenceValue").equals(stateFromTrace.get(op.get("key"))))
+                        stateFromTrace.put(op.get("key").hashCode(), (String) op.get("value"));
+                }
+            }
+        }
+        /**
+         * Verify that all replicas are in the same state and that the state is equal to the one constructed from
+         * the trace.
+         */
         HashMap<Integer, String> reference = nodeStores.get(0);
-        for (HashMap<Integer, String> nodeStore: nodeStores) {
-        	Assert.assertTrue(reference.equals(nodeStore));
+        Assert.assertEquals(stateFromTrace,reference);
+        for (HashMap<Integer, String> nodeStore : nodeStores) {
+            Assert.assertTrue(reference.equals(nodeStore));
         }
+    }
+
+
+    private static boolean completed(ConcurrentLinkedQueue trace, String opId) {
+        for (Object item : trace) {
+            HashMap<String, Object> response = (HashMap) item;
+            if (response != null && response.get("operationCode") == null && opId.equals(response.get("id"))){
+                return true;
+            }
+        }
+        return false;
     }
 
 }

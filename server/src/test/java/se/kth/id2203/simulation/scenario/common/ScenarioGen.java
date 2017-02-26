@@ -21,25 +21,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.simulation.scenario;
+package se.kth.id2203.simulation.scenario.common;
 
 import se.kth.id2203.ParentComponent;
 import se.kth.id2203.networking.NetAddress;
 import se.kth.id2203.simulation.gv.SimulationObserver;
-import se.kth.id2203.simulation.scenario.lin.LinScenarioClient;
-import se.kth.id2203.simulation.scenario.lin.LinScenarioParentComponent;
+import se.kth.id2203.simulation.scenario.lin.SequentialClient;
 import se.kth.id2203.simulation.scenario.ops.SimpleOpsScenarioClient;
+import se.kth.id2203.simulation.scenario.reconf.ReconfTestClient;
 import se.sics.kompics.Init;
 import se.sics.kompics.network.Address;
 import se.sics.kompics.simulator.SimulationScenario;
 import se.sics.kompics.simulator.adaptor.Operation;
 import se.sics.kompics.simulator.adaptor.Operation1;
 import se.sics.kompics.simulator.adaptor.Operation3;
+import se.sics.kompics.simulator.adaptor.Operation4;
 import se.sics.kompics.simulator.adaptor.distributions.ConstantDistribution;
 import se.sics.kompics.simulator.adaptor.distributions.extra.BasicIntSequentialDistribution;
 import se.sics.kompics.simulator.events.system.KillNodeEvent;
 import se.sics.kompics.simulator.events.system.StartNodeEvent;
-import se.kth.id2203.simulation.scenario.view.*;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -137,7 +137,7 @@ public abstract class ScenarioGen {
 
                 @Override
                 public Class getComponentDefinition() {
-                    return LinScenarioParentComponent.class;
+                    return SimulationParentComponent.class;
                 }
 
                 @Override
@@ -165,10 +165,10 @@ public abstract class ScenarioGen {
         }
     };
     
-    private static final Operation3 startScenarioView = new Operation3<StartNodeEvent, Integer, Integer, Integer>() {
+    private static final Operation4 startScenarioView = new Operation4<StartNodeEvent, Integer, Integer, Integer, Integer>() {
 
         @Override
-        public StartNodeEvent generate(final Integer self, final Integer replicationDegree, final Integer bootThreshold) {
+        public StartNodeEvent generate(final Integer self, final Integer replicationDegree, final Integer bootThreshold, final Integer keyRange) {
             return new StartNodeEvent() {
                 final NetAddress selfAdr;
                 final NetAddress bsAdr;
@@ -189,7 +189,7 @@ public abstract class ScenarioGen {
 
                 @Override
                 public Class getComponentDefinition() {
-                    return ViewScenarioParentComponent.class;
+                    return SimulationParentComponent.class;
                 }
 
                 @Override
@@ -208,6 +208,7 @@ public abstract class ScenarioGen {
                     config.put("id2203.project.address", selfAdr);
                     config.put("id2203.project.replicationDegree", replicationDegree);
                     config.put("id2203.project.bootThreshold", bootThreshold);
+                    config.put("id2203.project.keyspace", keyRange);
                     if (self != 1) { // don't put this at the bootstrap server, or it will act as a bootstrap client
                         config.put("id2203.project.bootstrap-address", bsAdr);
                     }
@@ -271,7 +272,7 @@ public abstract class ScenarioGen {
     /**
      * Operation for starting a client, takes one parameter which defines the pid of the client.
      */
-    private static final Operation1 startLinClientOp = new Operation1<StartNodeEvent, Integer>() {
+    private static final Operation1 startSequentialClient = new Operation1<StartNodeEvent, Integer>() {
 
         @Override
         public StartNodeEvent generate(final Integer self) {
@@ -295,7 +296,58 @@ public abstract class ScenarioGen {
 
                 @Override
                 public Class getComponentDefinition() {
-                    return LinScenarioClient.class;
+                    return SequentialClient.class;
+                }
+
+                @Override
+                public String toString() {
+                    return "StartClient<" + selfAdr.toString() + ">";
+                }
+
+                @Override
+                public Init getComponentInit() {
+                    return Init.NONE;
+                }
+
+                @Override
+                public Map<String, Object> initConfigUpdate() {
+                    HashMap<String, Object> config = new HashMap<>();
+                    config.put("id2203.project.address", selfAdr);
+                    config.put("id2203.project.bootstrap-address", bsAdr);
+                    return config;
+                }
+            };
+        }
+    };
+
+    /**
+     * Operation for starting a client, takes one parameter which defines the pid of the client.
+     */
+    private static final Operation1 startReconfClient = new Operation1<StartNodeEvent, Integer>() {
+
+        @Override
+        public StartNodeEvent generate(final Integer self) {
+            return new StartNodeEvent() {
+                final NetAddress selfAdr;
+                final NetAddress bsAdr;
+
+                {
+                    try {
+                        selfAdr = new NetAddress(InetAddress.getByName("192.168.1." + self), 45678);
+                        bsAdr = new NetAddress(InetAddress.getByName("192.168.0.1"), 45678);
+                    } catch (UnknownHostException ex) {
+                        throw new RuntimeException(ex);
+                    }
+                }
+
+                @Override
+                public Address getNodeAddress() {
+                    return selfAdr;
+                }
+
+                @Override
+                public Class getComponentDefinition() {
+                    return ReconfTestClient.class;
                 }
 
                 @Override
@@ -415,7 +467,7 @@ public abstract class ScenarioGen {
                 };
                 startCluster.start();
                 startClients.startAfterTerminationOf(60000, startCluster);
-                terminateAfterTerminationOf(100000, startClients);
+                terminateAfterTerminationOf(1000000, startClients);
             }
         };
     }
@@ -441,7 +493,7 @@ public abstract class ScenarioGen {
                 SimulationScenario.StochasticProcess startClients = new SimulationScenario.StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(clients, startLinClientOp, new BasicIntSequentialDistribution(1));
+                        raise(clients, startSequentialClient, new BasicIntSequentialDistribution(1));
                     }
                 };
                 /*
@@ -467,7 +519,7 @@ public abstract class ScenarioGen {
                 SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(servers, startScenarioView, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
+                        raise(servers, startScenarioView, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers), new ConstantDistribution(Integer.class, 50));
                     }
                 };
                 SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
@@ -483,26 +535,58 @@ public abstract class ScenarioGen {
         };
     }
     
-    public static SimulationScenario reconfTest(final int servers, final int replicationDegree, final int join) {
+    public static SimulationScenario reconfTest(final int servers, final int replicationDegree, final int join, final int keyrange) {
         return new SimulationScenario() {
             {
                 SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(servers, startScenarioView, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
+                        raise(servers, startScenarioView, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers), new ConstantDistribution(Integer.class,  keyrange));
                     }
                 };
                 
                 SimulationScenario.StochasticProcess addServer = new SimulationScenario.StochasticProcess() {
                     {
                         eventInterArrivalTime(constant(1000));
-                        raise(join, startScenarioView, new BasicIntSequentialDistribution(servers+1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
+                        raise(join, startScenarioView, new BasicIntSequentialDistribution(servers+1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers), new ConstantDistribution(Integer.class,  keyrange));
                     }
                 };
-                
+
+                SimulationScenario.StochasticProcess startClient = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(1, startReconfClient, new BasicIntSequentialDistribution(1));
+                    }
+                };
+
                 startCluster.start();
-                addServer.startAfterStartOf(60000, startCluster);
-                terminateAfterTerminationOf(60000, addServer);
+                startClient.startAfterStartOf(60000, startCluster);
+                addServer.startAfterStartOf(60000, startClient);
+                terminateAfterTerminationOf(600000, addServer);
+            }
+        };
+    }
+
+    public static SimulationScenario reconfCrashTest(final int servers, final int replicationDegree, final int crashes, final int keyrange) {
+        return new SimulationScenario() {
+            {
+                SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(servers, startScenarioView, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers), new ConstantDistribution(Integer.class,  keyrange));
+                    }
+                };
+
+                SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(0));
+                        raise(crashes, killNodeOp, new BasicIntSequentialDistribution((1)));
+                    }
+                };
+
+                startCluster.start();
+                killNode.startAfterStartOf(60000, startCluster);
+                terminateAfterTerminationOf(600000, killNode);
             }
         };
     }

@@ -21,8 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package se.kth.id2203.overlay.manager;
+package se.kth.id2203.simulation.scenario.common;
 
+import com.google.common.collect.ImmutableMap;
 import com.larskroll.common.J6;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,33 +35,27 @@ import se.kth.id2203.kvstore.events.ReplicationInit;
 import se.kth.id2203.kvstore.ports.KVPort;
 import se.kth.id2203.networking.Message;
 import se.kth.id2203.networking.NetAddress;
-import se.kth.id2203.overlay.*;
+import se.kth.id2203.overlay.Connect;
+import se.kth.id2203.overlay.PID;
+import se.kth.id2203.overlay.RouteMsg;
 import se.kth.id2203.overlay.lookuptable.LookupTable;
 import se.kth.id2203.overlay.lookuptable.PartitionAssignmentException;
 import se.kth.id2203.overlay.manager.ports.Routing;
 import se.kth.id2203.overlay.service.events.GlobalView;
 import se.kth.id2203.overlay.service.events.VSOverlayServiceInit;
 import se.kth.id2203.overlay.service.ports.OverlayServicePort;
+import se.kth.id2203.simulation.result.SimulationResultMap;
+import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.sics.kompics.*;
 import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Set;
 
-/**
- * The V(ery)S(imple)OverlayManager.
- * <p>
- * Keeps all nodes in a single partition in one replication group.
- * <p>
- * Note: This implementation does not fulfill the project task. You have to
- * support multiple partitions!
- * <p>
- * Handles routing and communication with bootstrap-server.
- *
- * @author Lars Kroll <lkroll@kth.se>
- */
-public class VSOverlayManager extends ComponentDefinition {
+public class SimulationVSOverlayManager extends ComponentDefinition {
 
     /* Ports */
     protected final Negative<Routing> route = provides(Routing.class);
@@ -70,10 +65,11 @@ public class VSOverlayManager extends ComponentDefinition {
     protected final Positive<Timer> timer = requires(Timer.class);
     protected final Positive<KVPort> kvPort = requires(KVPort.class);
     /* Fields */
-    final static Logger LOG = LoggerFactory.getLogger(VSOverlayManager.class);
+    final static Logger LOG = LoggerFactory.getLogger(SimulationVSOverlayManager.class);
     final NetAddress self = config().getValue("id2203.project.address", NetAddress.class);
     private LookupTable lut = null;
     private PID selfPID;
+    private final SimulationResultMap res = SimulationResultSingleton.getInstance();
 
     /**
      * Bootstrap server requests to get initial assignment to partitions
@@ -105,6 +101,7 @@ public class VSOverlayManager extends ComponentDefinition {
                 LOG.info("Got NodeAssignment, overlay ready.");
                 lut = (LookupTable) event.assignment;
                 selfPID = lut.getPID(self);
+                res.put(selfPID.netAddress.getIp().getHostAddress()+"-globalviews",new ArrayList<>());
                 int key = lut.reverseLookup(selfPID);
                 Collection<PID> replicationGroup = lut.lookup(key);
                 trigger(new ReplicationInit((Set) replicationGroup, selfPID, event.keyValues), kvPort);
@@ -169,9 +166,18 @@ public class VSOverlayManager extends ComponentDefinition {
         public void handle(GlobalView globalView) {
             LOG.debug("Received new global view table from VSOverlayService");
             lut = globalView.lookupTable;
+            ArrayList<Map> viewHistory = res.get(selfPID.netAddress.getIp().getHostAddress()+"-globalviews", ArrayList.class);
+            viewHistory.add(ImmutableMap.copyOf(globalView.lookupTable.getMap().asMap()));
         }
     };
-
+/*
+    private HashMap<String, Object> convertToHashMap(LookupTable lookupTable){
+        HashMap<String,Object> result = new HashMap<>();
+        res.put("keys", lookupTable.getMap().keySet());
+        res.put("", lookupTable.getMap().)
+        return result;
+    }
+*/
     /**
      * Kompics "instance initializer", subscribe handlers to ports.
      */ {

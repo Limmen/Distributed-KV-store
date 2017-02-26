@@ -37,16 +37,15 @@ import se.sics.kompics.network.Network;
 import se.sics.kompics.timer.Timer;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Test client that issues put/get in random order, used to verify linearizability among other things.
  *
  * @author Kim Hammar
  */
-public class LinScenarioClient extends ComponentDefinition {
+public class SequentialClient extends ComponentDefinition {
 
-    final static Logger LOG = LoggerFactory.getLogger(LinScenarioClient.class);
+    final static Logger LOG = LoggerFactory.getLogger(SequentialClient.class);
     //******* Ports ******
     protected final Positive<Network> net = requires(Network.class);
     protected final Positive<Timer> timer = requires(Timer.class);
@@ -55,25 +54,15 @@ public class LinScenarioClient extends ComponentDefinition {
     private final NetAddress server = config().getValue("id2203.project.bootstrap-address", NetAddress.class);
     private final SimulationResultMap res = SimulationResultSingleton.getInstance();
     private final Map<UUID, Operation> pending = new TreeMap<>();
+    private final Random random = new Random();
+    private int count = 0;
     //******* Handlers ******
     protected final Handler<Start> startHandler = new Handler<Start>() {
 
         @Override
         public void handle(Start event) {
-            Random random = new Random();
-            int messages = res.get("messages", Integer.class);
-            int half = messages / 2;
-            ArrayList<Operation> operations = new ArrayList<>();
-            for (int i = 0; i < half; i++) {
-                operations.add(new Operation(Integer.toString(i), Integer.toString(random.nextInt(100)),"" ,Operation.OperationCode.PUT));
-            }
-            for (int i = 0; i < half; i++) {
-                operations.add(new Operation(Integer.toString(i), "", "",Operation.OperationCode.GET));
-            }
-            Collections.shuffle(operations);
-            for (Operation op : operations) {
-                sendOp(op);
-            }
+            sendOp(new Operation("1", Integer.toString(random.nextInt(100)), "", Operation.OperationCode.PUT));
+
         }
     };
     protected final ClassMatchedHandler<OpResponse, Message> responseHandler = new ClassMatchedHandler<OpResponse, Message>() {
@@ -82,11 +71,23 @@ public class LinScenarioClient extends ComponentDefinition {
         public void handle(OpResponse content, Message context) {
             LOG.debug("Got OpResponse: {}", content.toString());
             Operation operation = pending.remove(content.id);
-            if (operation.key != null) {
-                Queue trace = res.get("trace", ConcurrentLinkedQueue.class);
-                trace.add(content);
-            } else {
-                LOG.warn("ID {} was not pending! Ignoring response.", content.id);
+            int messages = res.get("messages", Integer.class);
+            if(count < messages){
+                int opCode = random.nextInt(3);
+                Operation.OperationCode operationCode = null;
+                switch (opCode) {
+                    case 0:
+                        operationCode = Operation.OperationCode.GET;
+                        break;
+                    case 1:
+                        operationCode = Operation.OperationCode.PUT;
+                        break;
+                    case 2:
+                        operationCode = Operation.OperationCode.CAS;
+                        break;
+                }
+                sendOp(new Operation(Integer.toString(random.nextInt(100)), Integer.toString(random.nextInt(100)), Integer.toString(random.nextInt(100)), operationCode));
+                count++;
             }
         }
     };

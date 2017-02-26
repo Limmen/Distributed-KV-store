@@ -52,6 +52,14 @@ public class LookupTable implements NodeAssignment {
         this.partitions = TreeMultimap.create(lookupTable.partitions);
     }
 
+    public int lookupPartitionKey(int keyHash){
+        Integer partition = partitions.keySet().floor(keyHash);
+        if (partition == null) {
+            partition = partitions.keySet().last();
+        }
+        return partition;
+    }
+
     public Collection<PID> lookup(String key) {
         int keyHash = key.hashCode();
         Integer partition = partitions.keySet().floor(keyHash);
@@ -59,6 +67,10 @@ public class LookupTable implements NodeAssignment {
             partition = partitions.keySet().last();
         }
         return partitions.get(partition);
+    }
+
+    public TreeMultimap getMap(){
+        return partitions;
     }
 
     public Collection<PID> lookup(int keyHash) {

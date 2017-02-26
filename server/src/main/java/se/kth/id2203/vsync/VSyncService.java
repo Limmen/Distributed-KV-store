@@ -132,7 +132,7 @@ public class VSyncService extends ComponentDefinition {
                         notAcked.add(member);
                 }
                 if (notAcked.size() > 0) {
-                    LOG.warn("Resending update to backups waiting for {} nodes ", notAcked.size());
+                    LOG.debug("Resending update to backups waiting for {} nodes ", notAcked.size());
                     trigger(new BEB_Broadcast(new VS_Deliver(pendingUpdate, selfPid, viewId), notAcked, selfPid), broadcastPort);
                 } else {
                     trigger(new VS_Deliver(new OperationComplete(pendingUpdate.id), selfPid, viewId), vSyncPort);
@@ -193,7 +193,7 @@ public class VSyncService extends ComponentDefinition {
                 LOG.debug("Received StateTransfer from leader in view, delivering to application");
                 latestUpdate = (StateTransfer) vs_deliver.payload;
                 OperationAck acc = new OperationAck(latestUpdate.id, selfPid);
-                LOG.warn("Sending acc to {} ", beb_deliver.source);
+                LOG.debug("Sending acc to {} ", beb_deliver.source);
                 trigger(new Message(selfPid.netAddress, beb_deliver.source.netAddress, acc), net);
                 trigger(vs_deliver, vSyncPort);
             }
@@ -207,7 +207,7 @@ public class VSyncService extends ComponentDefinition {
 
         @Override
         public void handle(OperationAck content, Message context) {
-            LOG.warn("Received acc from {} ", context.getSource());
+            LOG.debug("Received acc from {} ", context.getSource());
             acks.add(content.source);
         }
     };

@@ -25,7 +25,7 @@ package se.kth.id2203.simulation.scenario.lin;
 
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
-import se.kth.id2203.simulation.scenario.ScenarioGen;
+import se.kth.id2203.simulation.scenario.common.ScenarioGen;
 import se.sics.kompics.simulator.SimulationScenario;
 import se.sics.kompics.simulator.run.LauncherComp;
 

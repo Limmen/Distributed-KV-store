@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import se.kth.id2203.gms.events.View;
+import se.kth.id2203.kvstore.events.Handover;
 import se.kth.id2203.kvstore.events.KVServiceTimeout;
 import se.kth.id2203.kvstore.events.ReplicationInit;
 import se.kth.id2203.kvstore.events.RouteOperation;
@@ -65,7 +66,7 @@ public class KVService extends ComponentDefinition {
     private View replicationGroup;
     private boolean blocked;
     private Queue<RouteOperation> operationQueue = new LinkedList<>();
-    private Queue<RouteOperation> pendingOperations = new LinkedList<>();
+    private RouteOperation pendingOperation = null;
     private UUID timeoutId;
 
 
@@ -90,7 +91,7 @@ public class KVService extends ComponentDefinition {
         @Override
         public void handle(KVServiceTimeout event) {
             if (operationQueue.size() > 0 && !blocked && replicationGroup != null) {
-                while (operationQueue.size() > 0) {
+                while (operationQueue.size() > 0 && pendingOperation == null) {
                     trigger(new Message(selfPid.netAddress, replicationGroup.leader.netAddress, operationQueue.poll()), net);
                 }
             }
@@ -125,7 +126,7 @@ public class KVService extends ComponentDefinition {
             if (replicationGroup.leader.equals(selfPid)) {
                 timestamp++;
                 LOG.debug("Leader received operation");
-                if (!blocked) {
+                if (!blocked && pendingOperation == null) {
                     switch (routeOperation.operation.operationCode) {
                         case GET:
                             sendOp(routeOperation);
@@ -157,7 +158,7 @@ public class KVService extends ComponentDefinition {
         StateTransfer snapshot = new StateTransfer(ImmutableMap.copyOf(keyValues), timestamp);
         trigger(new VS_Broadcast(snapshot, replicationGroup.id), vSyncPort);
         routeOperation.id = snapshot.id;
-        pendingOperations.add(routeOperation);
+        pendingOperation = routeOperation;
     }
 
     /**
@@ -169,6 +170,7 @@ public class KVService extends ComponentDefinition {
             LOG.debug("KVService recieved new view from VSyncService");
             blocked = false;
             replicationGroup = view;
+            pendingOperation = null;
         }
     };
 
@@ -182,6 +184,7 @@ public class KVService extends ComponentDefinition {
             timestamp = 0;
             blocked = false;
             selfPid = replicationInit.self;
+            keyValues = replicationInit.keyValues;
             trigger(new VSyncInit(ImmutableSet.copyOf(replicationInit.nodes), selfPid, new StateTransfer(ImmutableMap.copyOf(keyValues), timestamp)), vSyncPort);
         }
     };
@@ -206,29 +209,27 @@ public class KVService extends ComponentDefinition {
     protected final ClassMatchedHandler<OperationComplete, VS_Deliver> writeCompleteHandler = new ClassMatchedHandler<OperationComplete, VS_Deliver>() {
         @Override
         public void handle(OperationComplete operationComplete, VS_Deliver vs_deliver) {
-            Iterator<RouteOperation> i = pendingOperations.iterator();
-            while (i.hasNext()) {
-                RouteOperation routeOperation = i.next();
-                if (operationComplete.id.equals(routeOperation.id)) {
+            if(pendingOperation != null){
+                if (operationComplete.id.equals(pendingOperation.id)) {
                     LOG.debug("Operation complete from Vsync layer, delivering to the client");
-                    switch (routeOperation.operation.operationCode) {
+                    switch (pendingOperation.operation.operationCode) {
                         case GET:
-                            String val = keyValues.get(routeOperation.operation.key.hashCode());
+                            String val = keyValues.get(pendingOperation.operation.key.hashCode());
                             if (val == null)
                                 val = "not found";
-                            trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, val)), net);
+                            trigger(new Message(selfPid.netAddress, pendingOperation.client, new OpResponse(pendingOperation.operation.id, OpResponse.Code.OK, val)), net);
                             break;
                         case PUT:
-                            trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, "Write successful")), net);
+                            trigger(new Message(selfPid.netAddress, pendingOperation.client, new OpResponse(pendingOperation.operation.id, OpResponse.Code.OK, "Write successful")), net);
                             break;
                         case CAS:
-                            if (routeOperation.oldValue == null) {
-                                routeOperation.oldValue = "not found";
+                            if (pendingOperation.oldValue == null) {
+                                pendingOperation.oldValue = "not found";
                             }
-                            trigger(new Message(selfPid.netAddress, routeOperation.client, new OpResponse(routeOperation.operation.id, OpResponse.Code.OK, routeOperation.oldValue)), net);
+                            trigger(new Message(selfPid.netAddress, pendingOperation.client, new OpResponse(pendingOperation.operation.id, OpResponse.Code.OK, pendingOperation.oldValue)), net);
                             break;
                     }
-                    i.remove();
+                    pendingOperation = null;
                 }
             }
         }
@@ -246,18 +247,34 @@ public class KVService extends ComponentDefinition {
         }
     };
 
-    private void printStore() {
-        System.out.println("--------------------------------------");
-        System.out.println("Store:");
-        for (int key : keyValues.keySet()) {
-            System.out.println("key: " + key + " | value: " + keyValues.get(key));
+    /**
+     * We got unncessary keys in our store, update store.
+     */
+    protected final Handler<Handover> handoverHandler = new Handler<Handover>() {
+        @Override
+        public void handle(Handover handover) {
+            if (replicationGroup.leader.equals(selfPid)) {
+                LOG.debug("KVService received request to handover some keys");
+                timestamp++;
+                StateTransfer snapshot = new StateTransfer(ImmutableMap.copyOf(handover.keyValues), timestamp);
+                trigger(new VS_Broadcast(snapshot, replicationGroup.id), vSyncPort);
+            }
         }
-        System.out.println("--------------------------------------");
+    };
+
+    private void printStore() {
+        LOG.info("--------------------------------------");
+        LOG.info("Store:");
+        for (int key : keyValues.keySet()) {
+            LOG.info("key: " + key + " | value: " + keyValues.get(key));
+        }
+        LOG.info("--------------------------------------");
     }
 
     /**
      * Kompics "instance initializer", subscribe handlers to ports.
      */ {
+        subscribe(handoverHandler, kvPort);
         subscribe(startHandler, control);
         subscribe(timeoutHandler, timer);
         subscribe(routedOpHandler, net);

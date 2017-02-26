@@ -65,6 +65,7 @@ public class ParentComponent extends ComponentDefinition {
         connect(net, overlayService.required(Network.class), Channel.TWO_WAY);
         connect(timer, overlayService.required(Timer.class), Channel.TWO_WAY);
         connect(vSync.provided(VSyncPort.class), overlayService.required(VSyncPort.class), Channel.TWO_WAY);
+        connect(kv.provided(KVPort.class), overlayService.required(KVPort.class), Channel.TWO_WAY);
         //KV
         connect(overlay.getPositive(Routing.class), kv.getNegative(Routing.class), Channel.TWO_WAY);
         connect(net, kv.getNegative(Network.class), Channel.TWO_WAY);
