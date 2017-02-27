@@ -100,7 +100,7 @@ public class GMS extends ComponentDefinition {
                 LOG.warn("Under-replicated or partitioned, crash to make place for a primary partition if such exists.");
                 Kompics.shutdown();
             }
-            if (members != null && members.size() != currentView.members.size() && pendingView == null)
+            if (members != null && members.size() >= replicationDegree && members.size() != currentView.members.size() && pendingView == null)
                 viewChange();
             if (role == Role.LEADER && pendingView != null && pendingView.id > currentView.id) {
                 Set<PID> notAcked = new HashSet<>();
@@ -108,7 +108,7 @@ public class GMS extends ComponentDefinition {
                     if (!acks.contains(member))
                         notAcked.add(member);
                 }
-                if (pendingView.members.size() - notAcked.size() < replicationDegree) { //quorum not yet acked
+                if (notAcked.size() > 0) { //quorum not yet acked
                     LOG.debug("I'm leader in my currentView, sending currentView proposal and collecting ACKs");
                     trigger(new BEB_Broadcast(new ViewProposal(pendingView), notAcked, selfPid), broadcastPort);
                 } else {

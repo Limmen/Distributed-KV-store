@@ -248,7 +248,7 @@ public class VSyncService extends ComponentDefinition {
         @Override
         public void handle(FlushReq flushReq, BEB_Deliver beb_deliver) {
             LOG.debug("Received Flush-request");
-            if ((flushReq.oldView == viewId || viewId == 0) && flushReq.viewId == pendingViews.peek().id)
+            if ((flushReq.oldView == viewId || viewId == 0) && pendingViews.size() > 0 && flushReq.viewId == pendingViews.peek().id)
                 trigger(new Message(selfPid.netAddress, pendingViews.peek().leader.netAddress, new Flush(latestUpdate, pendingViews.peek().id, viewId, selfPid)), net);
         }
     };
@@ -279,7 +279,7 @@ public class VSyncService extends ComponentDefinition {
         @Override
         public void handle(Flush flush, Message context) {
             LOG.debug("Received Flush");
-            if ((flush.oldView == viewId || flush.oldView == 0) && flush.viewId == pendingViews.peek().id && pendingViews.peek().leader.equals(selfPid)) {
+            if ((flush.oldView == viewId || flush.oldView == 0) && pendingViews.size() > 0 && flush.viewId == pendingViews.peek().id && pendingViews.peek().leader.equals(selfPid)) {
                 flushes.add(flush.source);
                 if (flush.latestUpdate != null && flush.latestUpdate.timestamp > latestUpdate.timestamp)
                     latestUpdate = flush.latestUpdate;
