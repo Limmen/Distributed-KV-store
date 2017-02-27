@@ -81,6 +81,21 @@ public class AddNodesToPartitionTest {
         	Assert.assertEquals(2, wp0.id);
         	Assert.assertEquals(SERVERS + JOINS, wp0.members.size());
         }
+        
+        /**
+         * Verify that all nodes have consistent store, especially joined servers
+         * 
+         */
+        ArrayList<HashMap<Integer, String>> nodeStores = new ArrayList<>();
+        for (int i = 1; i <= SERVERS+JOINS; i++) {
+            String ip = "192.168.0." + i;
+            nodeStores.add(res.get(ip+"-values", HashMap.class));
+        }
+        
+        HashMap<Integer, String> reference = nodeStores.get(0);
+        for (HashMap<Integer, String> nodeStore : nodeStores) {
+            Assert.assertTrue(reference.equals(nodeStore));
+        }
     }
 
     private static ViewWrapper fromHashMapToView(HashMap<String,Object> from){
