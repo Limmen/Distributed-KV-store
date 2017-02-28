@@ -496,17 +496,9 @@ public abstract class ScenarioGen {
                         raise(clients, startSequentialClient, new BasicIntSequentialDistribution(1));
                     }
                 };
-                /*
-                SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
-                    {
-                        eventInterArrivalTime(constant(0));
-                        raise(crashes, killNodeOp, new BasicIntSequentialDistribution((1)));
-                    }
-                };*/
                 startCluster.start();
-                //killNode.startAfterStartOf(60000, startCluster);
-                startClients.startAfterTerminationOf(70000, startCluster);
-                terminateAfterTerminationOf(100000, startClients);
+                startClients.startAfterTerminationOf(10000, startCluster);
+                terminateAfterTerminationOf(1000000, startClients);
             }
         };
     }

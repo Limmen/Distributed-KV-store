@@ -118,7 +118,7 @@ public class SimulationKVService extends ComponentDefinition {
         HashMap<String, Object> result = new HashMap<>();
         result.put("value", opResponse.value);
         result.put("id", opResponse.id.toString());
-        result.put("status", opResponse.status);
+        result.put("status", opResponse.status.toString());
         return result;
     }
 
