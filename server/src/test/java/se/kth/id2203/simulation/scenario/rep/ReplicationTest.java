@@ -1,6 +1,7 @@
 package se.kth.id2203.simulation.scenario.rep;
 
 import junit.framework.Assert;
+import org.junit.Test;
 import se.kth.id2203.kvstore.Operation;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
@@ -25,10 +26,10 @@ public class ReplicationTest {
     private static final int SERVERS = 5;
     private static final int CLIENTS = 3;
     private static final int REPLICATION_DEGREE = 3;
-    private static final int CRASHES = 2;
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
-    public static void main(String[] args) {
+    @Test
+    public void replicationTest() {
 
         long seed = 123;
         SimulationScenario.setSeed(seed);
@@ -38,7 +39,7 @@ public class ReplicationTest {
          * and sequential CLIENTS that will send operations to the cluster. Then verify that all replicas are in a
          * consistent state and that the state is consistent with what operations where returned to clients and in what order.
          */
-        SimulationScenario simpleBootScenario = ScenarioGen.linearizeTest(SERVERS, CLIENTS, REPLICATION_DEGREE, CRASHES);
+        SimulationScenario simpleBootScenario = ScenarioGen.replicationTest(SERVERS, CLIENTS, REPLICATION_DEGREE);
         res.put("messages", NUM_MESSAGES);
         res.put("trace", new ConcurrentLinkedQueue<>());
         simpleBootScenario.simulate(LauncherComp.class);

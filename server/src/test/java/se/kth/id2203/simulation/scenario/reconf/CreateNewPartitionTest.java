@@ -1,6 +1,7 @@
 package se.kth.id2203.simulation.scenario.reconf;
 
 import org.junit.Assert;
+import org.junit.Test;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.simulation.scenario.common.ScenarioGen;
@@ -25,8 +26,8 @@ public class CreateNewPartitionTest {
 
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
-
-    public static void main(String[] args) {
+    @Test
+    public void createNewPartitionTest() {
         long seed = 123;
         SimulationScenario.setSeed(seed);
         SimulationScenario reconfigureTest = ScenarioGen.reconfTest(SERVERS, REPLICATION_DEGREE, JOINS, KEY_RANGE);

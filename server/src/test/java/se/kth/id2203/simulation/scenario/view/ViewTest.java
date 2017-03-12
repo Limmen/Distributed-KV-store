@@ -2,6 +2,7 @@ package se.kth.id2203.simulation.scenario.view;
 
 
 import org.junit.Assert;
+import org.junit.Test;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.simulation.scenario.common.ScenarioGen;
@@ -25,7 +26,8 @@ public class ViewTest {
     private static final int CRASHES = 2;
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
-    public static void main(String[] args) {
+    @Test
+    public void ViewTest() {
         
         long seed = 123;
         SimulationScenario.setSeed(seed);

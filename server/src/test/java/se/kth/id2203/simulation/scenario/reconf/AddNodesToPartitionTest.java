@@ -1,6 +1,7 @@
 package se.kth.id2203.simulation.scenario.reconf;
 
 import org.junit.Assert;
+import org.junit.Test;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.simulation.scenario.common.ScenarioGen;
@@ -19,8 +20,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * This test will check if nodes get a correct view once new nodes joins one partition.
  * Basically similar test as ViewTest but instead of testing that the view is updated once crashes occur this
  * file tests that views are updated when new nodes join a partition.
- * 
- * TODO: Test linearisability?
  *
  */
 public class AddNodesToPartitionTest {
@@ -32,7 +31,8 @@ public class AddNodesToPartitionTest {
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
 
-    public static void main(String[] args){
+    @Test
+    public void addNodesToPartitionTest(){
     	long seed = 123;
         SimulationScenario.setSeed(seed);
         SimulationScenario reconfigureTest = ScenarioGen.reconfTest(SERVERS, REPLICATION_DEGREE, JOINS, 50);

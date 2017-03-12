@@ -23,7 +23,7 @@
  */
 package se.kth.id2203.simulation.scenario.lin;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import org.junit.Test;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
@@ -38,38 +38,37 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Test linearizable operation semantics of the KV-Store by creating a random execution and asserting properties
- * on the trace of events.
+ * Extension to the LinTest where crashes and more clients are added to the scenario.
  *
- * Starts up a cluster of servers and clients and runs a simulation where clients issues requests to the cluster.
- * The servers will log every operation-invocation event as well as every operation-response events.
- *
- * After the simulation linearizable properties are verified on the trace of events.
- *
- * Linearizability is tested with the Wing & Gong linearizability algorithm
+ * See LinTest for more information about how linearizability is tested.
  *
  * @author Kim Hammar
  */
-public class LinTest {
+public class LinCrashTest {
 
     private static final int NUM_MESSAGES = 10;
-    private static final int SERVERS = 5;
+    private static final int SERVERS = 3;
     private static final int CLIENTS = 3;
-    private static final int REPLICATION_DEGREE = 2;
+    private static final int REPLICATION_DEGREE = 3;
+    private static final int CRASHES = 2;
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
     @Test
-    public void linTest() {
+    public void linCrashTest() {
 
         long seed = 123;
         SimulationScenario.setSeed(seed);
-        SimulationScenario simpleBootScenario = ScenarioGen.linearizeTest(SERVERS, CLIENTS, REPLICATION_DEGREE);
+        SimulationScenario simpleBootScenario = ScenarioGen.linearizeCrashTest(SERVERS, CLIENTS, REPLICATION_DEGREE, CRASHES);
         res.put("messages", NUM_MESSAGES);
         res.put("trace", new ConcurrentLinkedQueue<>());
 
         /**
          * Start a cluster of SERVERS and then start CLIENTS where each client will send NUM_MESSAGES operation-requests
-         * sequentially, the operations are randomized (i.e random between PUT/GET/CAS).
+         * then simultaneously crash CRASHES of servers and start a new set of CLIENTS then wait a while until start
+         * set of CLIENTS again. Purpose of the scenario is to see that even when reconfiguration occurs due to crashes
+         * and new group-views are installed, linearizability is always maintained.
+         *
+         * The clients will send operations sequentially, the operations are randomized (i.e random between PUT/GET/CAS).
          */
         simpleBootScenario.simulate(LauncherComp.class);
 

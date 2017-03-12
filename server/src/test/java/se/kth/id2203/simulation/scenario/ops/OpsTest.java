@@ -24,6 +24,7 @@
 package se.kth.id2203.simulation.scenario.ops;
 
 import junit.framework.Assert;
+import org.junit.Test;
 import se.kth.id2203.simulation.result.SimulationResultMap;
 import se.kth.id2203.simulation.result.SimulationResultSingleton;
 import se.kth.id2203.simulation.scenario.common.ScenarioGen;
@@ -47,7 +48,8 @@ public class OpsTest {
     private static final int REPLICATION_DEGREE = 3;
     private final static SimulationResultMap res = SimulationResultSingleton.getInstance();
 
-    public static void main(String[] args) {
+    @Test
+    public void opsTest() {
 
         long seed = 123;
         SimulationScenario.setSeed(seed);

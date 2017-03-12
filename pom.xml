@@ -86,7 +86,6 @@
                     <target>${java.compiler.version}</target>
                     <debug>true</debug>
                     <optimize>true</optimize>
-                    <showDeprecations>true</showDeprecations>
                 </configuration>
             </plugin>
         </plugins>

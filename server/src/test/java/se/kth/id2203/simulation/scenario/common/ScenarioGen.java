@@ -480,7 +480,7 @@ public abstract class ScenarioGen {
      * @param servers number of servers
      * @return
      */
-    public static SimulationScenario linearizeTest(final int servers, final int clients, final int replicationDegree, final int crashes) {
+    public static SimulationScenario linearizeTest(final int servers, final int clients, final int replicationDegree) {
         return new SimulationScenario() {
             {
                 SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
@@ -498,13 +498,82 @@ public abstract class ScenarioGen {
                 };
                 startCluster.start();
                 startClients.startAfterTerminationOf(10000, startCluster);
-                terminateAfterTerminationOf(1000000, startClients);
+                terminateAfterTerminationOf(10000, startClients);
             }
         };
     }
-    
-    
-    
+
+
+    public static SimulationScenario linearizeCrashTest(final int servers, final int clients, final int replicationDegree, final int crashes) {
+        return new SimulationScenario() {
+            {
+                SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(servers, startScenarioServerOp, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
+                    }
+                };
+
+                SimulationScenario.StochasticProcess startClients = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(clients, startSequentialClient, new BasicIntSequentialDistribution(1));
+                    }
+                };
+
+                SimulationScenario.StochasticProcess killNode = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(0));
+                        raise(crashes, killNodeOp, new BasicIntSequentialDistribution((1)));
+                    }
+                };
+
+                SimulationScenario.StochasticProcess startClients2 = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(clients, startSequentialClient, new BasicIntSequentialDistribution(1));
+                    }
+                };
+
+                SimulationScenario.StochasticProcess startClients3 = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(clients, startSequentialClient, new BasicIntSequentialDistribution(1));
+                    }
+                };
+                startCluster.start();
+                startClients.startAfterTerminationOf(10000, startCluster);
+                killNode.startAfterStartOf(7000, startClients);
+                startClients2.startAfterStartOf(7000, startClients);
+                startClients3.startAfterStartOf(70000, killNode);
+                terminateAfterTerminationOf(1000, startClients3);
+            }
+        };
+    }
+
+    public static SimulationScenario replicationTest(final int servers, final int clients, final int replicationDegree) {
+        return new SimulationScenario() {
+            {
+                SimulationScenario.StochasticProcess startCluster = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(servers, startScenarioServerOp, new BasicIntSequentialDistribution(1), new ConstantDistribution(Integer.class, replicationDegree), new ConstantDistribution(Integer.class, servers));
+                    }
+                };
+
+                SimulationScenario.StochasticProcess startClients = new SimulationScenario.StochasticProcess() {
+                    {
+                        eventInterArrivalTime(constant(1000));
+                        raise(clients, startSequentialClient, new BasicIntSequentialDistribution(1));
+                    }
+                };
+                startCluster.start();
+                startClients.startAfterTerminationOf(100000, startCluster);
+                terminateAfterTerminationOf(10000, startClients);
+            }
+        };
+    }
+
     public static SimulationScenario viewTest(final int servers, final int replicationDegree, final int crashes) {
         return new SimulationScenario() {
             {
